@@ -1,94 +1,196 @@
 import uuid
 from typing import List, Optional
+from datetime import datetime
 from sqlmodel import Field, Relationship, SQLModel
-from datetime import date, datetime
 
-class Variant(SQLModel, table=True):
-    __tablename__ = "variant"
+# --- Category ---
+class CategoryBase(SQLModel):
+    name_cat: Optional[str] = Field(default=None, max_length=255)
+    description: Optional[str] = Field(default=None, max_length=255)
 
-    id: Optional[int] = Field(default=None, primary_key=True)
-    product_id: Optional[int] = Field(default=None, foreign_key="product.id")
-    beverage_option: Optional[str] = Field(default=None)
-    calories: Optional[float] = Field(default=None)
-    dietary_fibre_g: Optional[float] = Field(default=None)
-    sugars_g: Optional[float] = Field(default=None)
-    protein_g: Optional[float] = Field(default=None)
-    vitamin_a: Optional[str] = Field(default=None)
-    vitamin_c: Optional[str] = Field(default=None)
-    caffeine_mg: Optional[float] = Field(default=None)
-    price: Optional[float] = Field(default=None)
-    sales_rank: Optional[int] = Field(default=None)
+class CategoryCreate(CategoryBase):
+    pass
 
-    product: Optional["Product"] = Relationship(back_populates="variants")
+class CategoryUpdate(CategoryBase):
+    pass
 
-class Store(SQLModel, table=True):
-    __tablename__ = "store"
+class Category(CategoryBase, table=True):
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    products: List["Product"] = Relationship(back_populates="category")
 
-    id: Optional[int] = Field(default=None, primary_key=True)
-    name_store: Optional[str] = Field(default=None)
-    address: Optional[str] = Field(default=None)
-    phone: Optional[str] = Field(default=None)
-    open_close: Optional[str] = Field(default=None)
+class CategoryPublic(CategoryBase):
+    id: uuid.UUID
 
-    orders: List["Orders"] = Relationship(back_populates="store")
+class CategoriesPublic(SQLModel):
+    data: List[CategoryPublic]
+    count: int
 
-class OrderDetail(SQLModel, table=True):
-    __tablename__ = "order_detail"
+# --- Product ---
+class ProductBase(SQLModel):
+    name: Optional[str] = Field(default=None, max_length=255)
+    descriptions: Optional[str] = Field(default=None, max_length=255)
+    link_image: Optional[str] = Field(default=None, max_length=255)
 
-    id: Optional[int] = Field(default=None, primary_key=True)
-    order_id: Optional[int] = Field(default=None, foreign_key="orders.id")
-    variant_id: Optional[int] = Field(default=None, foreign_key="variant.id")
-    quantity: Optional[int] = Field(default=None)
-    rate: Optional[float] = Field(default=None)
-    unit_price: Optional[float] = Field(default=None)
+class ProductCreate(ProductBase):
+    categories_id: Optional[uuid.UUID] = None
 
-    order: Optional["Orders"] = Relationship(back_populates="order_details")
-    variant: Optional["Variant"] = Relationship()
+class ProductUpdate(ProductBase):
+    categories_id: Optional[uuid.UUID] = None
 
-class Orders(SQLModel, table=True):
-    __tablename__ = "orders"
+class Product(ProductBase, table=True):
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    categories_id: Optional[uuid.UUID] = Field(default=None, foreign_key="category.id")
+    variants: List["Variant"] = Relationship(back_populates="product")
+    category: Optional[Category] = Relationship(back_populates="products")
 
-    id: Optional[int] = Field(default=None, primary_key=True)
-    customer_id: Optional[int] = Field(default=None, foreign_key="customers.id")
-    store_id: Optional[int] = Field(default=None, foreign_key="store.id")
-    order_date: Optional[datetime] = Field(default=None)
-    total_amount: Optional[float] = Field(default=None)
+class ProductPublic(ProductBase):
+    id: uuid.UUID
+    categories_id: Optional[uuid.UUID]
 
-    customer: Optional["Customers"] = Relationship(back_populates="orders")
-    store: Optional["Store"] = Relationship(back_populates="orders")
-    order_details: List[OrderDetail] = Relationship(back_populates="order")
+class ProductsPublic(SQLModel):
+    data: List[ProductPublic]
+    count: int
 
-class Customers(SQLModel, table=True):
-    __tablename__ = "customers"
+# --- Variant ---
+class VariantBase(SQLModel):
+    beverage_option: Optional[str] = Field(default=None, max_length=100)
+    calories: Optional[float] = None
+    dietary_fibre_g: Optional[float] = None
+    sugars_g: Optional[float] = None
+    protein_g: Optional[float] = None
+    vitamin_a: Optional[str] = Field(default=None, max_length=50)
+    vitamin_c: Optional[str] = Field(default=None, max_length=50)
+    caffeine_mg: Optional[float] = None
+    price: Optional[float] = None
+    sales_rank: Optional[int] = None
 
-    id: Optional[int] = Field(default=None, primary_key=True)
-    name: Optional[str] = Field(default=None)
-    sex: Optional[str] = Field(default=None)
-    age: Optional[int] = Field(default=None)
-    location: Optional[str] = Field(default=None)
-    picture: Optional[str] = Field(default=None)
-    embedding: Optional[str] = Field(default=None)
-    username: Optional[str] = Field(default=None)
-    password: Optional[str] = Field(default=None)
+class VariantCreate(VariantBase):
+    product_id: Optional[uuid.UUID] = None
 
-    orders: List[Orders] = Relationship(back_populates="customer")
+class VariantUpdate(VariantBase):
+    product_id: Optional[uuid.UUID] = None
 
-class Product(SQLModel, table=True):
-    __tablename__ = "product"
+class Variant(VariantBase, table=True):
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    product_id: Optional[uuid.UUID] = Field(default=None, foreign_key="product.id")
+    product: Optional[Product] = Relationship(back_populates="variants")
 
-    id: Optional[int] = Field(default=None, primary_key=True)
-    categories_id: Optional[int] = Field(default=None, foreign_key="categories.id")
-    name: Optional[str] = Field(default=None)
-    descriptions: Optional[str] = Field(default=None)
-    link_image: Optional[str] = Field(default=None)
+class VariantPublic(VariantBase):
+    id: uuid.UUID
+    product_id: Optional[uuid.UUID]
 
-    variants: List[Variant] = Relationship(back_populates="product")
+class VariantsPublic(SQLModel):
+    data: List[VariantPublic]
+    count: int
 
-class Categories(SQLModel, table=True):
-    __tablename__ = "categories"
+# --- Customer ---
+class CustomerBase(SQLModel):
+    name: Optional[str] = Field(default=None, max_length=255)
+    sex: Optional[str] = Field(default=None, max_length=10)
+    age: Optional[int] = None
+    location: Optional[str] = Field(default=None, max_length=255)
+    picture: Optional[str] = Field(default=None, max_length=255)
+    embedding: Optional[str] = Field(default=None, max_length=255)
+    username: Optional[str] = Field(default=None, max_length=255)
+    password: Optional[str] = Field(default=None, min_length=8, max_length=40)
 
-    id: Optional[int] = Field(default=None, primary_key=True)
-    name_cat: Optional[str] = Field(default=None)
-    description: Optional[str] = Field(default=None)
+class CustomerCreate(CustomerBase):
+    pass
 
-    products: List[Product] = Relationship(back_populates="categories")
+class CustomerUpdate(CustomerBase):
+    pass
+
+class Customer(CustomerBase, table=True):
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    orders: List["Order"] = Relationship(back_populates="customer")
+
+class CustomerPublic(CustomerBase):
+    id: uuid.UUID
+
+class CustomersPublic(SQLModel):
+    data: List[CustomerPublic]
+    count: int
+
+# --- Store ---
+class StoreBase(SQLModel):
+    name_store: Optional[str] = Field(default=None, max_length=255)
+    address: Optional[str] = Field(default=None, max_length=255)
+    phone: Optional[str] = Field(default=None, max_length=50)
+    open_close: Optional[str] = Field(default=None, max_length=50)
+
+class StoreCreate(StoreBase):
+    pass
+
+class StoreUpdate(StoreBase):
+    pass
+
+class Store(StoreBase, table=True):
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    orders: List["Order"] = Relationship(back_populates="store")
+
+class StorePublic(StoreBase):
+    id: uuid.UUID
+
+class StoresPublic(SQLModel):
+    data: List[StorePublic]
+    count: int
+
+# --- Order ---
+class OrderBase(SQLModel):
+    order_date: Optional[datetime] = None
+    total_amount: Optional[float] = None
+
+class OrderCreate(OrderBase):
+    customer_id: Optional[uuid.UUID] = None
+    store_id: Optional[uuid.UUID] = None
+
+class OrderUpdate(OrderBase):
+    customer_id: Optional[uuid.UUID] = None
+    store_id: Optional[uuid.UUID] = None
+
+class Order(OrderBase, table=True):
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    customer_id: Optional[uuid.UUID] = Field(default=None, foreign_key="customer.id")
+    store_id: Optional[uuid.UUID] = Field(default=None, foreign_key="store.id")
+    customer: Optional[Customer] = Relationship(back_populates="orders")
+    store: Optional[Store] = Relationship(back_populates="orders")
+    order_details: List["OrderDetail"] = Relationship(back_populates="order")
+
+class OrderPublic(OrderBase):
+    id: uuid.UUID
+    customer_id: Optional[uuid.UUID]
+    store_id: Optional[uuid.UUID]
+
+class OrdersPublic(SQLModel):
+    data: List[OrderPublic]
+    count: int
+
+# --- Order Detail ---
+class OrderDetailBase(SQLModel):
+    quantity: Optional[int] = None
+    rate: Optional[float] = None
+    unit_price: Optional[float] = None
+
+class OrderDetailCreate(OrderDetailBase):
+    order_id: Optional[uuid.UUID] = None
+    variant_id: Optional[uuid.UUID] = None
+
+class OrderDetailUpdate(OrderDetailBase):
+    order_id: Optional[uuid.UUID] = None
+    variant_id: Optional[uuid.UUID] = None
+
+class OrderDetail(OrderDetailBase, table=True):
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    order_id: Optional[uuid.UUID] = Field(default=None, foreign_key="order.id")
+    variant_id: Optional[uuid.UUID] = Field(default=None, foreign_key="variant.id")
+    order: Optional[Order] = Relationship(back_populates="order_details")
+    variant: Optional[Variant] = Relationship()
+
+class OrderDetailPublic(OrderDetailBase):
+    id: uuid.UUID
+    order_id: Optional[uuid.UUID]
+    variant_id: Optional[uuid.UUID]
+
+class OrderDetailsPublic(SQLModel):
+    data: List[OrderDetailPublic]
+    count: int
