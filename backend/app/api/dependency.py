@@ -10,9 +10,9 @@ from sqlmodel import Session
 
 from app.core import security
 from app.core.config import settings
-from app.core.db import engine
+from app.core.database import engine
 from app.models import TokenPayload
-from app.model import Customer  # Sử dụng model Customer
+from app.models import Customer  # Sử dụng model Customer
 
 # OAuth2 scheme để lấy token từ request
 reusable_oauth2 = OAuth2PasswordBearer(
