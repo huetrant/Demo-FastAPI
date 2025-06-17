@@ -18,16 +18,17 @@ This backend is built with FastAPI, a modern, fast (high-performance) web framew
 - `app/api/main.py`: Main API router that includes all sub-routers.
 
 ## Installation and Running
-1. Create and activate a virtual environment:
+1. Create and activate a virtual environment in the root folder:
    ```bash
    python -m venv venv
    source venv/bin/activate  # On Windows use `venv\Scripts\activate`
    ```
-2. Install dependencies:
+2. Install dependencies for FastAPI and other packages in the virtual environment (these are managed in the root folder environment):
    ```bash
-   pip install -r requirements.txt
+   pip install fastapi uvicorn
    ```
-3. Run the backend server:
+3. The backend libraries and dependencies are managed in `backend/pyproject.toml`.
+4. Run the backend server:
    ```bash
    uvicorn backend.app.api.main:api_router --reload
    ```
