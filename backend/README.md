@@ -27,7 +27,11 @@ This backend is built with FastAPI, a modern, fast (high-performance) web framew
    ```bash
    pip install fastapi uvicorn
    ```
-3. The backend libraries and dependencies are managed in `backend/pyproject.toml`.
+3. The backend libraries and dependencies are managed in `backend/pyproject.toml`. To install them, run:
+   ```bash
+   pip install poetry
+   poetry install
+   ```
 4. Run the backend server:
    ```bash
    uvicorn backend.app.api.main:api_router --reload
@@ -58,16 +62,21 @@ Backend này được xây dựng bằng FastAPI, một framework web hiện đ�
 - `app/api/main.py`: Router API chính bao gồm tất cả các sub-router.
 
 ## Cài đặt và chạy
-1. Tạo và kích hoạt môi trường ảo:
+1. Tạo và kích hoạt môi trường ảo ở thư mục gốc:
    ```bash
    python -m venv venv
    source venv/bin/activate  # Trên Windows dùng `venv\Scripts\activate`
    ```
-2. Cài đặt các thư viện phụ thuộc:
+2. Cài đặt các thư viện phụ thuộc cho FastAPI và các gói khác trong môi trường ảo (được quản lý ở thư mục gốc):
    ```bash
-   pip install -r requirements.txt
+   pip install fastapi uvicorn
    ```
-3. Chạy server backend:
+3. Các thư viện backend được quản lý trong file `backend/pyproject.toml`. Để cài đặt, chạy:
+   ```bash
+   pip install poetry
+   poetry install
+   ```
+4. Chạy server backend:
    ```bash
    uvicorn backend.app.api.main:api_router --reload
    ```

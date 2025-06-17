@@ -8,16 +8,16 @@ This project is a full-stack application consisting of a backend API built with 
 ## Setup and Running
 
 ### Backend
-1. Navigate to the `backend` folder.
-2. Create and activate a virtual environment:
+1. Create and activate a virtual environment in the root folder:
    ```bash
    python -m venv venv
    source venv/bin/activate  # On Windows use `venv\Scripts\activate`
    ```
-3. Install dependencies:
+2. Install FastAPI and Uvicorn in the virtual environment:
    ```bash
-   pip install -r requirements.txt
+   pip install fastapi uvicorn
    ```
+3. The backend dependencies are managed in `backend/pyproject.toml`.
 4. Run the backend server:
    ```bash
    uvicorn backend.app.api.main:api_router --reload
@@ -47,16 +47,16 @@ Dự án này là một ứng dụng full-stack bao gồm backend API xây dựn
 ## Cài đặt và chạy
 
 ### Backend
-1. Vào thư mục `backend`.
-2. Tạo và kích hoạt môi trường ảo:
+1. Tạo và kích hoạt môi trường ảo ở thư mục gốc:
    ```bash
    python -m venv venv
    source venv/bin/activate  # Trên Windows dùng `venv\Scripts\activate`
    ```
-3. Cài đặt các thư viện phụ thuộc:
+2. Cài đặt FastAPI và Uvicorn trong môi trường ảo:
    ```bash
-   pip install -r requirements.txt
+   pip install fastapi uvicorn
    ```
+3. Các thư viện backend được quản lý trong file `backend/pyproject.toml`.
 4. Chạy server backend:
    ```bash
    uvicorn backend.app.api.main:api_router --reload
