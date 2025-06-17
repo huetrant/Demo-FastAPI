@@ -9,7 +9,7 @@ from app.api.router import (
     r_orders,
     r_order_details,
 )
-from app.core.config import settings
+
 
 api_router = APIRouter()
 api_router.include_router(r_categories.router)

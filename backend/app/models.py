@@ -9,6 +9,10 @@ class CategoryBase(SQLModel):
     name_cat: str = Field(sa_column=Column('name_cat', String(255)))
     description: Optional[str] = Field(sa_column=Column('description', Text))
 
+    @property
+    def name(self) -> str:
+        return self.name_cat
+
 class CategoryCreate(CategoryBase):
     pass
 
@@ -20,8 +24,15 @@ class Category(CategoryBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     products: List["Product"] = Relationship(back_populates="category")
 
+from pydantic import computed_field
+
 class CategoryPublic(CategoryBase):
     id: uuid.UUID
+
+    @computed_field
+    @property
+    def name(self) -> str:
+        return self.name_cat
 
 class CategoriesPublic(SQLModel):
     data: List[CategoryPublic]

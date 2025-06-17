@@ -5,11 +5,17 @@ from sqlmodel import Session, select, func
 
 from app.models import Variant, VariantCreate, VariantUpdate
 
-def get_variants(*, session: Session, skip: int = 0, limit: int = 100) -> Tuple[List[Variant], int]:
+def get_variants(*, session: Session, skip: int = 0, limit: int = 100, product_id: uuid.UUID = None) -> Tuple[List[Variant], int]:
     """Lấy danh sách các variants với phân trang"""
-    count_statement = select(func.count()).select_from(Variant)
-    count = session.exec(count_statement).one()
-    statement = select(Variant).offset(skip).limit(limit)
+    if product_id:
+        count_statement = select(func.count()).select_from(Variant).where(Variant.product_id == product_id)
+        count = session.exec(count_statement).one()
+        statement = select(Variant).where(Variant.product_id == product_id).offset(skip).limit(limit)
+    else:
+        count_statement = select(func.count()).select_from(Variant)
+        count = session.exec(count_statement).one()
+        statement = select(Variant).offset(skip).limit(limit)
+
     variants = session.exec(statement).all()
     return variants, count
 
@@ -35,16 +41,10 @@ def update_variant(*, session: Session, db_variant: Variant, variant_in: Variant
     session.refresh(db_variant)
     return db_variant
 
-def delete_variant(*, session: Session, variant: Variant) -> Variant:
+def delete_variant(*, session: Session, variant: Variant) -> None:
     """Xóa một variant"""
-    db_variant = variant
     session.delete(variant)
     session.commit()
-    session.refresh(db_variant)
-    return db_variant
-    session.commit()
-    session.refresh(db_variant)
-    return db_variant
 
 # Lấy variant theo id
 def get_variant_by_id(*, session: Session, id: uuid.UUID) -> Variant | None:

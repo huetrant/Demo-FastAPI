@@ -27,10 +27,16 @@ def get_order_detail(*, session: Session, id: uuid.UUID) -> OrderDetail | None:
     return session.get(OrderDetail, id)
 
 # Lấy danh sách chi tiết đơn hàng và tổng số, có phân trang
-def get_order_details(*, session: Session, skip: int = 0, limit: int = 100) -> Tuple[List[OrderDetail], int]:
-    count_statement = select(func.count()).select_from(OrderDetail)
-    count = session.exec(count_statement).one()
-    statement = select(OrderDetail).offset(skip).limit(limit)
+def get_order_details(*, session: Session, skip: int = 0, limit: int = 100, order_id: uuid.UUID = None) -> Tuple[List[OrderDetail], int]:
+    if order_id:
+        count_statement = select(func.count()).select_from(OrderDetail).where(OrderDetail.order_id == order_id)
+        count = session.exec(count_statement).one()
+        statement = select(OrderDetail).where(OrderDetail.order_id == order_id).offset(skip).limit(limit)
+    else:
+        count_statement = select(func.count()).select_from(OrderDetail)
+        count = session.exec(count_statement).one()
+        statement = select(OrderDetail).offset(skip).limit(limit)
+
     order_details = session.exec(statement).all()
     return order_details, count
 

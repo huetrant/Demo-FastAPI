@@ -24,9 +24,9 @@ router = APIRouter(prefix="/variants", tags=["variants"])
 
 @router.get("/", response_model=VariantsPublic)
 def read_variants(
-    session: SessionDep, skip: int = 0, limit: int = 100
+    session: SessionDep, skip: int = 0, limit: int = 100, product_id: uuid.UUID = None
 ) -> Any:
-    variants, count = crud_get_variants(session=session, skip=skip, limit=limit)
+    variants, count = crud_get_variants(session=session, skip=skip, limit=limit, product_id=product_id)
     data = [VariantPublic.model_validate(var) for var in variants]
     return VariantsPublic(data=data, count=count)
 

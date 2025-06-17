@@ -20,13 +20,13 @@ from app.crud.crud_order_detail import (
     delete_order_detail as crud_delete_order_detail,
 )
 
-router = APIRouter(prefix="/order-details", tags=["order-details"])
+router = APIRouter(prefix="/order_details", tags=["order_details"])
 
 @router.get("/", response_model=OrderDetailsPublic)
 def read_order_details(
-    session: SessionDep, skip: int = 0, limit: int = 100
+    session: SessionDep, skip: int = 0, limit: int = 100, order_id: uuid.UUID = None
 ) -> Any:
-    order_details, count = crud_get_order_details(session=session, skip=skip, limit=limit)
+    order_details, count = crud_get_order_details(session=session, skip=skip, limit=limit, order_id=order_id)
     data = [OrderDetailPublic.model_validate(od) for od in order_details]
     return OrderDetailsPublic(data=data, count=count)
 
