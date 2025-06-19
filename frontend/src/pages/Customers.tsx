@@ -1,48 +1,64 @@
-import React, { useEffect, useState } from 'react'
-import { useSelector, useDispatch } from 'react-redux'
-import { fetchCustomers, createCustomer, updateCustomer, deleteCustomer } from '../store/slices/customersSlice'
-import type { RootState, AppDispatch } from '../store'
+import React, { useCallback, useState } from 'react'
+import { Button, Modal, Form, Input, Select, InputNumber, Typography, Space } from 'antd'
+import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
 import {
-  Row,
-  Col,
-  Card,
-  Button,
-  Modal,
-  Form,
-  Input,
-  Spin,
-  Alert,
-  Typography,
-  message,
-  Pagination,
-  Tag,
-  Avatar,
-  InputNumber,
-  Select
-} from 'antd'
-import { PlusOutlined, EditOutlined, DeleteOutlined, UserOutlined, EnvironmentOutlined, ManOutlined, WomanOutlined } from '@ant-design/icons'
-import { Customer } from '../interfaces'
+  LoadingSpinner,
+  ErrorAlert,
+  DataTable,
+  showDeleteConfirm,
+  showUpdateConfirm
+} from '../components'
+import { usePaginatedApi, useMutation } from '../hooks'
+import { customersService } from '../client/services'
+import type { Customer, CustomerCreate, CustomerUpdate } from '../client/types'
+import { formatDate, formatId, commonRules } from '../utils'
 
 const { Title, Text } = Typography
-const { confirm } = Modal
 const { Option } = Select
 
 const Customers: React.FC = () => {
-  const dispatch = useDispatch<AppDispatch>()
-  const { items, loading, error } = useSelector((state: RootState) => state.customers)
-  const [currentPage, setCurrentPage] = useState(1)
-  const pageSize = 8
-
   const [isModalVisible, setIsModalVisible] = useState(false)
   const [modalMode, setModalMode] = useState<'add' | 'edit'>('add')
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null)
-
   const [form] = Form.useForm()
 
-  useEffect(() => {
-    dispatch(fetchCustomers())
-  }, [dispatch])
+  // Fetch customers with pagination
+  const fetchCustomers = useCallback(
+    (page: number, size: number) => customersService.getAll({ page, pageSize: size }),
+    []
+  )
+  const {
+    data: customers,
+    total: totalCustomers,
+    page: currentPage,
+    pageSize,
+    loading: customersLoading,
+    error: customersError,
+    changePage,
+    refresh: refetchCustomers
+  } = usePaginatedApi(
+    fetchCustomers,
+    1,
+    9
+  )
 
+  // Mutations
+  const createMutation = useMutation(
+    (data: CustomerCreate) => customersService.create(data),
+    { onSuccess: () => { refetchCustomers(); setIsModalVisible(false); form.resetFields() } }
+  )
+
+  const updateMutation = useMutation(
+    ({ id, data }: { id: string; data: CustomerUpdate }) => customersService.update(id, data),
+    { onSuccess: () => { refetchCustomers(); setIsModalVisible(false); form.resetFields() } }
+  )
+
+  const deleteMutation = useMutation(
+    (id: string) => customersService.delete(id),
+    { onSuccess: () => refetchCustomers() }
+  )
+
+  // Handlers
   const showAddModal = () => {
     setModalMode('add')
     setEditingCustomer(null)
@@ -55,215 +71,166 @@ const Customers: React.FC = () => {
     setEditingCustomer(customer)
     form.setFieldsValue({
       name: customer.name,
+      username: customer.username,
       sex: customer.sex,
       age: customer.age,
       location: customer.location,
       picture: customer.picture,
-      username: customer.username,
     })
     setIsModalVisible(true)
   }
 
-  const handleDelete = (id: string, customerName: string) => {
-    confirm({
-      title: 'Delete Customer',
-      content: `Are you sure you want to delete "${customerName}"? This action cannot be undone.`,
-      okText: 'Yes, Delete',
-      okType: 'danger',
-      cancelText: 'Cancel',
-      async onOk() {
-        try {
-          await dispatch(deleteCustomer(id)).unwrap()
-          dispatch(fetchCustomers())
-          message.success('Customer deleted successfully')
-        } catch (error) {
-          message.error('Failed to delete customer')
-        }
-      },
-    })
+  const handleDelete = (customer: Customer) => {
+    const customerName = customer.name || customer.username || 'this customer'
+    showDeleteConfirm(customerName, () => { void deleteMutation.mutate(customer.id) })
   }
 
   const handleCancel = () => {
-    const hasChanges = form.isFieldsTouched()
-
-    if (hasChanges) {
-      confirm({
-        title: 'Discard Changes',
-        content: 'You have unsaved changes. Are you sure you want to close without saving?',
-        okText: 'Yes, Discard',
-        okType: 'danger',
-        cancelText: 'Continue Editing',
-        onOk() {
-          form.resetFields()
-          setIsModalVisible(false)
-        },
-      })
-    } else {
-      setIsModalVisible(false)
-    }
+    form.resetFields()
+    setIsModalVisible(false)
   }
 
-  const onFinish = async (values: any) => {
+  const onFinish = (values: CustomerCreate | CustomerUpdate) => {
     if (modalMode === 'add') {
-      // Create: No confirmation needed
-      try {
-        await dispatch(createCustomer(values)).unwrap()
-        setIsModalVisible(false)
-        form.resetFields()
-        dispatch(fetchCustomers())
-        message.success('Customer created successfully')
-      } catch (error) {
-        message.error('Failed to create customer')
-      }
+      createMutation.mutate(values as CustomerCreate)
     } else if (modalMode === 'edit' && editingCustomer) {
-      // Update: Confirmation needed
-      confirm({
-        title: 'Update Customer',
-        content: `Are you sure you want to update "${values.name || values.username || editingCustomer.name || editingCustomer.username}"?`,
-        okText: 'Yes, Update',
-        cancelText: 'Cancel',
-        async onOk() {
-          try {
-            await dispatch(updateCustomer({ id: editingCustomer.id, ...values })).unwrap()
-            setIsModalVisible(false)
-            form.resetFields()
-            dispatch(fetchCustomers())
-            message.success('Customer updated successfully')
-          } catch (error) {
-            message.error('Failed to update customer')
-          }
-        },
+      const customerName = values.name || values.username || editingCustomer.name || editingCustomer.username || 'this customer'
+      void showUpdateConfirm(customerName, () => {
+        updateMutation.mutate({ id: editingCustomer.id, data: values })
       })
     }
   }
 
-  if (loading) return (
-    <div style={{ textAlign: 'center', padding: '50px' }}>
-      <Spin tip="Loading customers...">
-        <div style={{ minHeight: '200px' }} />
-      </Spin>
-    </div>
-  )
-
-  if (error) return <Alert message="Error" description={error} type="error" showIcon />
-
-  // Pagination logic
-  const startIndex = (currentPage - 1) * pageSize
-  const endIndex = startIndex + pageSize
-  const currentItems = Array.isArray(items) ? items.slice(startIndex, endIndex) : []
-
-  console.log('Customers items:', items)
-  console.log('Current items:', currentItems)
+  if (customersLoading) return <LoadingSpinner tip="Loading customers..." />
+  if (customersError) return <ErrorAlert description={customersError} onRetry={refetchCustomers} />
 
   return (
     <>
       <div style={{ marginBottom: 24 }}>
         <Title level={2}>Customers</Title>
-        <Text type="secondary">Manage customer information and profiles</Text>
+        <Text type="secondary">Manage customer accounts and information</Text>
       </div>
 
       <div style={{ marginBottom: 16, textAlign: 'right' }}>
-        <Button type="primary" icon={<PlusOutlined />} onClick={showAddModal}>
+        <Button
+          type="primary"
+          icon={<PlusOutlined />}
+          onClick={showAddModal}
+          loading={createMutation.loading}
+        >
           Add Customer
         </Button>
       </div>
 
-      {currentItems.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '50px' }}>
-          <Text type="secondary">No customers found. Click "Add Customer" to create your first customer.</Text>
-        </div>
-      ) : (
-        <Row gutter={[16, 16]}>
-          {currentItems.map((item: Customer) => (
-            <Col key={item.id} span={6}>
-              <Card
-                size="small"
-                style={{
-                  height: '100%',
-                  transition: 'all 0.3s ease',
-                }}
-                hoverable
-                actions={[
-                  <Button
-                    type="link"
-                    size="small"
-                    icon={<EditOutlined />}
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      showEditModal(item)
-                    }}
-                  >
-                    Edit
-                  </Button>,
-                  <Button
-                    type="link"
-                    size="small"
-                    danger
-                    icon={<DeleteOutlined />}
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      handleDelete(item.id, item.name || item.username || 'Customer')
-                    }}
-                  >
-                    Delete
-                  </Button>,
-                ]}
-              >
-                <div style={{ textAlign: 'center', padding: '20px 0' }}>
-                  <Avatar
-                    size={64}
-                    src={item.picture}
-                    icon={<UserOutlined />}
-                    style={{ marginBottom: '16px' }}
-                  />
-                  <Card.Meta
-                    title={<div style={{ fontSize: '16px', fontWeight: 'bold', marginBottom: '12px' }}>{item.name || item.username || 'Unnamed Customer'}</div>}
-                    description={
-                      <div style={{ textAlign: 'left' }}>
-                        {item.sex && (
-                          <div style={{ marginBottom: '8px', display: 'flex', alignItems: 'center' }}>
-                            {item.sex === 'male' ? <ManOutlined style={{ marginRight: '8px', color: '#1890ff' }} /> : <WomanOutlined style={{ marginRight: '8px', color: '#ff69b4' }} />}
-                            <Tag color={item.sex === 'male' ? 'blue' : 'pink'}>{item.sex}</Tag>
-                          </div>
-                        )}
-                        {item.age && (
-                          <div style={{ marginBottom: '8px', display: 'flex', alignItems: 'center' }}>
-                            <UserOutlined style={{ marginRight: '8px', color: '#1890ff' }} />
-                            <span style={{ fontSize: '12px' }}>{item.age} years old</span>
-                          </div>
-                        )}
-                        {item.location && (
-                          <div style={{ display: 'flex', alignItems: 'center' }}>
-                            <EnvironmentOutlined style={{ marginRight: '8px', color: '#1890ff' }} />
-                            <span style={{ fontSize: '12px' }}>{item.location}</span>
-                          </div>
-                        )}
-                        {item.username && (
-                          <div style={{ marginTop: '8px', display: 'flex', alignItems: 'center' }}>
-                            <span style={{ fontSize: '11px', color: '#666' }}>@{item.username}</span>
-                          </div>
-                        )}
-                      </div>
-                    }
-                  />
-                </div>
-              </Card>
-            </Col>
-          ))}
-        </Row>
-      )}
+      <DataTable
+        data={customers}
+        columns={[
+          {
+            key: 'name',
+            title: 'Name',
+            dataIndex: 'name',
+            render: (name: string, record: Customer) => name || record.username || 'No name',
+            sorter: true,
+          },
+          {
+            key: 'username',
+            title: 'Username',
+            dataIndex: 'username',
+            sorter: true,
+          },
+          {
+            key: 'sex',
+            title: 'Gender',
+            dataIndex: 'sex',
+            render: (sex: string) => sex ? sex.charAt(0).toUpperCase() + sex.slice(1) : 'Not specified',
+          },
+          {
+            key: 'age',
+            title: 'Age',
+            dataIndex: 'age',
+            render: (age: number) => age || 'Not specified',
+            sorter: true,
+          },
+          {
+            key: 'location',
+            title: 'Location',
+            dataIndex: 'location',
+            render: (location: string) => location || 'Not specified',
+          },
+          {
+            key: 'id',
+            title: 'ID',
+            dataIndex: 'id',
+            render: (id: string) => formatId(id),
+            width: 100,
+          },
+          {
+            key: 'created_at',
+            title: 'Created',
+            dataIndex: 'created_at',
+            render: (date: string) => formatDate(date),
+            width: 120,
+          },
+          {
+            key: 'actions',
+            title: 'Actions',
+            render: (_, record: Customer) => (
+              <Space>
+                <Button
+                  type="link"
+                  icon={<EditOutlined />}
+                  onClick={() => showEditModal(record)}
+                  size="small"
+                >
+                  Edit
+                </Button>
+                <Button
+                  type="link"
+                  danger
+                  icon={<DeleteOutlined />}
+                  onClick={() => handleDelete(record)}
+                  size="small"
+                >
+                  Delete
+                </Button>
+              </Space>
+            ),
+            width: 120,
+          },
+        ]}
+        loading={customersLoading || deleteMutation.loading}
+        emptyText="No customers found. Click 'Add Customer' to create your first customer."
+      />
 
-      {items.length > pageSize && (
-        <Pagination
-          current={currentPage}
-          pageSize={pageSize}
-          total={items.length}
-          onChange={page => setCurrentPage(page)}
-          style={{ marginTop: 24, textAlign: 'center' }}
-          showSizeChanger={false}
-          showQuickJumper
-          showTotal={(total, range) => `${range[0]}-${range[1]} of ${total} customers`}
-        />
+      {totalCustomers > 0 && (
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', marginTop: 24 }}>
+          <Button
+            disabled={currentPage === 1}
+            onClick={() => changePage(currentPage - 1, pageSize)}
+          >
+            Previous
+          </Button>
+          <span style={{ margin: '0 16px' }}>
+            Page {currentPage} of {Math.ceil(totalCustomers / pageSize)}
+          </span>
+          <Button
+            disabled={currentPage >= Math.ceil(totalCustomers / pageSize)}
+            onClick={() => changePage(currentPage + 1, pageSize)}
+          >
+            Next
+          </Button>
+          <Select
+            value={pageSize}
+            onChange={(value) => changePage(1, value)}
+            style={{ width: 120, marginLeft: 16 }}
+          >
+            <Option value={9}>9 / page</Option>
+            <Option value={18}>18 / page</Option>
+            <Option value={27}>27 / page</Option>
+            <Option value={36}>36 / page</Option>
+          </Select>
+          <span style={{ marginLeft: 16, color: '#999' }}>Total: {totalCustomers}</span>
+        </div>
       )}
 
       <Modal
@@ -272,61 +239,71 @@ const Customers: React.FC = () => {
         onCancel={handleCancel}
         onOk={() => form.submit()}
         okText={modalMode === 'add' ? 'Add' : 'Update'}
+        confirmLoading={createMutation.loading || updateMutation.loading}
         width={600}
       >
         <Form
           form={form}
           layout="vertical"
           onFinish={onFinish}
-          initialValues={{ name: '', sex: '', age: null, location: '', picture: '', username: '', password: '' }}
+          initialValues={{ name: '', username: '', sex: '', age: undefined, location: '', picture: '' }}
         >
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item
-                name="name"
-                label="Full Name"
-                rules={[{ required: true, message: 'Please input the customer name!' }]}
-              >
-                <Input placeholder="Enter full name" />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item
-                name="username"
-                label="Username"
-                rules={[{ required: true, message: 'Please input the username!' }]}
-              >
-                <Input placeholder="Enter username" />
-              </Form.Item>
-            </Col>
-          </Row>
+          <Form.Item
+            name="name"
+            label="Full Name"
+            rules={[{ max: 100, message: 'Name must be less than 100 characters' }]}
+          >
+            <Input placeholder="Enter customer full name" />
+          </Form.Item>
 
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item
-                name="sex"
-                label="Gender"
-              >
-                <Select placeholder="Select gender">
-                  <Option value="male">Male</Option>
-                  <Option value="female">Female</Option>
-                  <Option value="other">Other</Option>
-                </Select>
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item
-                name="age"
-                label="Age"
-              >
-                <InputNumber min={1} max={120} placeholder="Enter age" style={{ width: '100%' }} />
-              </Form.Item>
-            </Col>
-          </Row>
+          <Form.Item
+            name="username"
+            label="Username"
+            rules={commonRules.username}
+          >
+            <Input placeholder="Enter username" />
+          </Form.Item>
+
+          {modalMode === 'add' && (
+            <Form.Item
+              name="password"
+              label="Password"
+              rules={commonRules.password}
+            >
+              <Input.Password placeholder="Enter password" />
+            </Form.Item>
+          )}
+
+          <Form.Item
+            name="sex"
+            label="Gender"
+          >
+            <Select placeholder="Select gender" allowClear>
+              <Option value="male">Male</Option>
+              <Option value="female">Female</Option>
+              <Option value="other">Other</Option>
+            </Select>
+          </Form.Item>
+
+          <Form.Item
+            name="age"
+            label="Age"
+            rules={[
+              { type: 'number', min: 1, max: 120, message: 'Age must be between 1 and 120' }
+            ]}
+          >
+            <InputNumber
+              placeholder="Enter age"
+              style={{ width: '100%' }}
+              min={1}
+              max={120}
+            />
+          </Form.Item>
 
           <Form.Item
             name="location"
             label="Location"
+            rules={[{ max: 200, message: 'Location must be less than 200 characters' }]}
           >
             <Input placeholder="Enter location" />
           </Form.Item>
@@ -334,22 +311,10 @@ const Customers: React.FC = () => {
           <Form.Item
             name="picture"
             label="Profile Picture URL"
+            rules={commonRules.url}
           >
-            <Input placeholder="Enter profile picture URL" />
+            <Input placeholder="Enter profile picture URL (optional)" />
           </Form.Item>
-
-          {modalMode === 'add' && (
-            <Form.Item
-              name="password"
-              label="Password"
-              rules={[
-                { required: true, message: 'Please input the password!' },
-                { min: 8, message: 'Password must be at least 8 characters!' }
-              ]}
-            >
-              <Input.Password placeholder="Enter password (min 8 characters)" />
-            </Form.Item>
-          )}
         </Form>
       </Modal>
     </>

@@ -1,7 +1,7 @@
 import uuid
 from typing import Any, List, Tuple
 
-from sqlmodel import Session, select, func
+from sqlmodel import Session, select, func, or_
 
 from app.models import Category, CategoryCreate, CategoryUpdate
 
@@ -38,3 +38,22 @@ def get_categories(*, session: Session, skip: int = 0, limit: int = 100) -> Tupl
 def delete_category(*, session: Session, category: Category) -> None:
     session.delete(category)
     session.commit()
+
+# Tìm kiếm category theo tên và mô tả
+def search_categories(*, session: Session, query: str, skip: int = 0, limit: int = 100) -> Tuple[List[Category], int]:
+    search_conditions = [
+        Category.name_cat.ilike(f"%{query}%"),
+        Category.description.ilike(f"%{query}%")
+    ]
+    
+    where_clause = or_(*search_conditions)
+    
+    # Đếm tổng số kết quả
+    count_statement = select(func.count()).select_from(Category).where(where_clause)
+    count = session.exec(count_statement).one()
+    
+    # Lấy danh sách danh mục
+    statement = select(Category).where(where_clause).offset(skip).limit(limit)
+    categories = session.exec(statement).all()
+    
+    return categories, count

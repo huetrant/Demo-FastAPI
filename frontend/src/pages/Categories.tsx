@@ -1,43 +1,60 @@
-import React, { useEffect, useState } from 'react'
-import { useSelector, useDispatch } from 'react-redux'
-import { fetchCategories, createCategory, updateCategory, deleteCategory } from '../store/slices/categoriesSlice'
-import type { RootState, AppDispatch } from '../store'
+import React, { useCallback, useState } from 'react'
+import { Card, Row, Col, Button, Modal, Form, Input, Typography, Select } from 'antd'
+import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
 import {
-  Row,
-  Col,
-  Card,
-  Button,
-  Modal,
-  Form,
-  Input,
-  Spin,
-  Alert,
-  Typography,
-  message,
-  Pagination
-} from 'antd'
-import { PlusOutlined, EditOutlined, DeleteOutlined, AppstoreOutlined } from '@ant-design/icons'
-import { Category } from '../interfaces'
+  LoadingSpinner,
+  ErrorAlert,
+  showDeleteConfirm,
+  showUpdateConfirm
+} from '../components'
+import { usePaginatedApi, useMutation } from '../hooks'
+import { categoriesService } from '../client/services'
+import type { Category, CategoryCreate, CategoryUpdate } from '../client/types'
+import { formatId, commonRules, truncateText } from '../utils'
 
 const { Title, Text } = Typography
-const { confirm } = Modal
+const { Option } = Select
 
 const Categories: React.FC = () => {
-  const dispatch = useDispatch<AppDispatch>()
-  const { items, loading, error } = useSelector((state: RootState) => state.categories)
-  const [currentPage, setCurrentPage] = useState(1)
-  const pageSize = 12
-
   const [isModalVisible, setIsModalVisible] = useState(false)
   const [modalMode, setModalMode] = useState<'add' | 'edit'>('add')
   const [editingCategory, setEditingCategory] = useState<Category | null>(null)
-
   const [form] = Form.useForm()
 
-  useEffect(() => {
-    dispatch(fetchCategories())
-  }, [dispatch])
+  // Fetch categories with pagination
+  const fetchCategories = useCallback((page: number, size: number) => categoriesService.getAll({ page, pageSize: size }), [])
+  const {
+    data: categories,
+    total: totalCategories,
+    page: currentPage,
+    pageSize,
+    loading: categoriesLoading,
+    error: categoriesError,
+    changePage,
+    refresh: refetchCategories
+  } = usePaginatedApi(
+    fetchCategories,
+    1,
+    9
+  )
 
+  // Mutations
+  const createMutation = useMutation(
+    (data: CategoryCreate) => categoriesService.create(data),
+    { onSuccess: () => { refetchCategories(); setIsModalVisible(false); form.resetFields() } }
+  )
+
+  const updateMutation = useMutation(
+    ({ id, data }: { id: string; data: CategoryUpdate }) => categoriesService.update(id, data),
+    { onSuccess: () => { refetchCategories(); setIsModalVisible(false); form.resetFields() } }
+  )
+
+  const deleteMutation = useMutation(
+    (id: string) => categoriesService.delete(id),
+    { onSuccess: () => refetchCategories() }
+  )
+
+  // Handlers
   const showAddModal = () => {
     setModalMode('add')
     setEditingCategory(null)
@@ -55,23 +72,8 @@ const Categories: React.FC = () => {
     setIsModalVisible(true)
   }
 
-  const handleDelete = (id: string, categoryName: string) => {
-    confirm({
-      title: 'Delete Category',
-      content: `Are you sure you want to delete "${categoryName}"? This action cannot be undone.`,
-      okText: 'Yes, Delete',
-      okType: 'danger',
-      cancelText: 'Cancel',
-      async onOk() {
-        try {
-          await dispatch(deleteCategory(id)).unwrap()
-          dispatch(fetchCategories())
-          message.success('Category deleted successfully')
-        } catch (error) {
-          message.error('Failed to delete category')
-        }
-      },
-    })
+  const handleDelete = (category: Category) => {
+    showDeleteConfirm(category.name, () => { deleteMutation.mutate(category.id) })
   }
 
   const handleCancel = () => {
@@ -79,140 +81,115 @@ const Categories: React.FC = () => {
     setIsModalVisible(false)
   }
 
-  const onFinish = async (values: any) => {
+  const onFinish = async (values: CategoryCreate | CategoryUpdate) => {
     if (modalMode === 'add') {
-      // Create: No confirmation needed
-      try {
-        await dispatch(createCategory(values)).unwrap()
-        setIsModalVisible(false)
-        form.resetFields()
-        dispatch(fetchCategories())
-        message.success('Category created successfully')
-      } catch (error) {
-        message.error('Failed to create category')
-      }
+      createMutation.mutate(values as CategoryCreate)
     } else if (modalMode === 'edit' && editingCategory) {
-      // Update: Confirmation needed
-      confirm({
-        title: 'Update Category',
-        content: `Are you sure you want to update "${values.name || editingCategory.name}"?`,
-        okText: 'Yes, Update',
-        cancelText: 'Cancel',
-        async onOk() {
-          try {
-            await dispatch(updateCategory({ id: editingCategory.id, ...values })).unwrap()
-            setIsModalVisible(false)
-            form.resetFields()
-            dispatch(fetchCategories())
-            message.success('Category updated successfully')
-          } catch (error) {
-            message.error('Failed to update category')
-          }
-        },
+      showUpdateConfirm(values.name || editingCategory.name, () => {
+        updateMutation.mutate({ id: editingCategory.id, data: values })
       })
     }
   }
 
-  if (loading) return (
-    <div style={{ textAlign: 'center', padding: '50px' }}>
-      <Spin tip="Loading categories...">
-        <div style={{ minHeight: '200px' }} />
-      </Spin>
-    </div>
-  )
-
-  if (error) return <Alert message="Error" description={error} type="error" showIcon />
-
-  // Pagination logic
-  const startIndex = (currentPage - 1) * pageSize
-  const endIndex = startIndex + pageSize
-  const currentItems = Array.isArray(items) ? items.slice(startIndex, endIndex) : []
+  if (categoriesLoading) return <LoadingSpinner tip="Loading categories..." />
+  if (categoriesError) return <ErrorAlert description={categoriesError} onRetry={refetchCategories} />
 
   return (
     <>
       <div style={{ marginBottom: 24 }}>
         <Title level={2}>Categories</Title>
-        <Text type="secondary">Manage product categories</Text>
+        <Text type="secondary">Manage your product categories</Text>
       </div>
 
       <div style={{ marginBottom: 16, textAlign: 'right' }}>
-        <Button type="primary" icon={<PlusOutlined />} onClick={showAddModal}>
+        <Button
+          type="primary"
+          icon={<PlusOutlined />}
+          onClick={showAddModal}
+          loading={createMutation.loading}
+        >
           Add Category
         </Button>
       </div>
 
       <Row gutter={[16, 16]}>
-        {currentItems.map((item: Category) => (
-          <Col key={item.id} span={6}>
+        {categories.map((category) => (
+          <Col xs={24} sm={12} md={8} key={category.id}>
             <Card
-              size="small"
-              style={{
-                height: '100%',
-                transition: 'all 0.3s ease',
-              }}
               hoverable
               actions={[
                 <Button
                   type="link"
-                  size="small"
                   icon={<EditOutlined />}
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    showEditModal(item)
-                  }}
+                  onClick={() => showEditModal(category)}
+                  key="edit"
                 >
                   Edit
                 </Button>,
                 <Button
                   type="link"
-                  size="small"
                   danger
                   icon={<DeleteOutlined />}
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    handleDelete(item.id, item.name)
-                  }}
+                  onClick={() => handleDelete(category)}
+                  key="delete"
                 >
                   Delete
                 </Button>,
               ]}
             >
-              <div style={{ textAlign: 'center', padding: '20px 0' }}>
-                <AppstoreOutlined style={{ fontSize: '48px', color: '#1890ff', marginBottom: '16px' }} />
-                <Card.Meta
-                  title={<div style={{ fontSize: '16px', fontWeight: 'bold', marginBottom: '8px' }}>{item.name}</div>}
-                  description={
-                    <div style={{
-                      fontSize: '14px',
-                      color: '#666',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      display: '-webkit-box',
-                      WebkitLineClamp: 3,
-                      WebkitBoxOrient: 'vertical',
-                      minHeight: '60px'
-                    }}>
-                      {item.description || 'No description'}
+              <Card.Meta
+                title={category.name}
+                description={
+                  <div>
+                    <div style={{ marginBottom: 8 }}>
+                      {truncateText(category.description || 'No description', 80)}
                     </div>
-                  }
-                />
-              </div>
+                    <div style={{ fontSize: 12, color: '#999' }}>
+                      ID: {formatId(category.id)}
+                    </div>
+                  </div>
+                }
+              />
             </Card>
           </Col>
         ))}
       </Row>
 
-      {items.length > pageSize && (
-        <Pagination
-          current={currentPage}
-          pageSize={pageSize}
-          total={items.length}
-          onChange={page => setCurrentPage(page)}
-          style={{ marginTop: 24, textAlign: 'center' }}
-          showSizeChanger={false}
-          showQuickJumper
-          showTotal={(total, range) => `${range[0]}-${range[1]} of ${total} categories`}
-        />
+      {categories.length === 0 && (
+        <div style={{ textAlign: 'center', padding: '50px', color: '#999' }}>
+          No categories found. Click "Add Category" to create your first category.
+        </div>
+      )}
+
+      {totalCategories > 0 && (
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', marginTop: 24 }}>
+          <Button
+            disabled={currentPage === 1}
+            onClick={() => changePage(currentPage - 1, pageSize)}
+          >
+            Previous
+          </Button>
+          <span style={{ margin: '0 16px' }}>
+            Page {currentPage} of {Math.ceil(totalCategories / pageSize)}
+          </span>
+          <Button
+            disabled={currentPage >= Math.ceil(totalCategories / pageSize)}
+            onClick={() => changePage(currentPage + 1, pageSize)}
+          >
+            Next
+          </Button>
+          <Select
+            value={pageSize}
+            onChange={(value) => changePage(1, value)}
+            style={{ width: 120, marginLeft: 16 }}
+          >
+            <Option value={9}>9 / page</Option>
+            <Option value={18}>18 / page</Option>
+            <Option value={27}>27 / page</Option>
+            <Option value={36}>36 / page</Option>
+          </Select>
+          <span style={{ marginLeft: 16, color: '#999' }}>Total: {totalCategories}</span>
+        </div>
       )}
 
       <Modal
@@ -221,7 +198,8 @@ const Categories: React.FC = () => {
         onCancel={handleCancel}
         onOk={() => form.submit()}
         okText={modalMode === 'add' ? 'Add' : 'Update'}
-        width={500}
+        confirmLoading={createMutation.loading || updateMutation.loading}
+        width={600}
       >
         <Form
           form={form}
@@ -232,20 +210,19 @@ const Categories: React.FC = () => {
           <Form.Item
             name="name"
             label="Category Name"
-            rules={[{ required: true, message: 'Please input the category name!' }]}
+            rules={commonRules.name}
           >
             <Input placeholder="Enter category name" />
           </Form.Item>
+
           <Form.Item
             name="description"
             label="Description"
-            rules={[{ required: true, message: 'Please input the category description!' }]}
+            rules={commonRules.description}
           >
             <Input.TextArea
-              rows={4}
+              rows={3}
               placeholder="Enter category description"
-              showCount
-              maxLength={500}
             />
           </Form.Item>
         </Form>

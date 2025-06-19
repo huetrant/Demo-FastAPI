@@ -1,7 +1,7 @@
 import uuid
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from sqlmodel import select, func
 
 from app.models import (
@@ -18,6 +18,7 @@ from app.crud.crud_categories import (
     get_category as crud_get_category,
     get_categories as crud_get_categories,
     delete_category as crud_delete_category,
+    search_categories as crud_search_categories,
 )
 
 router = APIRouter(prefix="/categories", tags=["categories"])
@@ -65,3 +66,22 @@ def delete_category(
         raise HTTPException(status_code=404, detail="Category not found")
     crud_delete_category(session=session, category=category)
     return {"message": "Category deleted successfully"}
+
+@router.get("/search", response_model=CategoriesPublic)
+def search_categories(
+    session: SessionDep,
+    q: str = Query(..., description="Từ khóa tìm kiếm"),
+    skip: int = Query(0, ge=0, description="Số bản ghi bỏ qua"),
+    limit: int = Query(100, ge=1, le=1000, description="Số bản ghi tối đa")
+) -> Any:
+    """
+    Tìm kiếm danh mục theo tên và mô tả
+    """
+    categories, count = crud_search_categories(
+        session=session, 
+        query=q, 
+        skip=skip, 
+        limit=limit
+    )
+    data = [CategoryPublic.model_validate(cat) for cat in categories]
+    return CategoriesPublic(data=data, count=count)

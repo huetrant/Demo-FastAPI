@@ -1,7 +1,7 @@
 import uuid
-from typing import Any
+from typing import Any, Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from sqlmodel import select, func
 
 from app.models import (

@@ -24,11 +24,12 @@ router = APIRouter(prefix="/orders", tags=["orders"])
 
 @router.get("/", response_model=OrdersPublic)
 def read_orders(
-    session: SessionDep, skip: int = 0, limit: int = 100
+    session: SessionDep, page: int = 1, page_size: int = 10
 ) -> Any:
-    orders, count = crud_get_orders(session=session, skip=skip, limit=limit)
+    skip = (page - 1) * page_size
+    orders, count = crud_get_orders(session=session, skip=skip, limit=page_size)
     data = [OrderPublic.model_validate(order) for order in orders]
-    return OrdersPublic(data=data, count=count)
+    return OrdersPublic(data=data, count=count, page=page, pageSize=page_size, totalPages= -(-count // page_size))
 
 @router.get("/{id}", response_model=OrderPublic)
 def read_order(

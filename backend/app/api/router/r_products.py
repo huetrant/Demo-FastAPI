@@ -1,7 +1,7 @@
 import uuid
-from typing import Any
+from typing import Any, Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from sqlmodel import select, func
 
 from app.models import (
@@ -18,6 +18,7 @@ from app.crud.crud_product import (
     get_product as crud_get_product,
     get_products as crud_get_products,
     delete_product as crud_delete_product,
+    search_products as crud_search_products,
 )
 
 router = APIRouter(prefix="/products", tags=["products"])
@@ -65,3 +66,24 @@ def delete_product(
         raise HTTPException(status_code=404, detail="Product not found")
     crud_delete_product(session=session, product=product)
     return {"message": "Product deleted successfully"}
+
+@router.get("/search", response_model=ProductsPublic)
+def search_products(
+    session: SessionDep,
+    q: str = Query(..., description="Từ khóa tìm kiếm"),
+    skip: int = Query(0, ge=0, description="Số bản ghi bỏ qua"),
+    limit: int = Query(100, ge=1, le=1000, description="Số bản ghi tối đa"),
+    category_id: Optional[uuid.UUID] = Query(None, description="Lọc theo danh mục")
+) -> Any:
+    """
+    Tìm kiếm sản phẩm theo tên và mô tả
+    """
+    products, count = crud_search_products(
+        session=session, 
+        query=q, 
+        skip=skip, 
+        limit=limit,
+        category_id=category_id
+    )
+    data = [ProductPublic.model_validate(prod) for prod in products]
+    return ProductsPublic(data=data, count=count)

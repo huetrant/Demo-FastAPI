@@ -1,199 +1,200 @@
-import React, { useEffect, useState } from 'react'
+import React, { useState, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { useSelector, useDispatch } from 'react-redux'
-import { fetchVariantsByProduct, createVariant, updateVariant, deleteVariant } from '../store/slices/variantsSlice'
-import { fetchProduct } from '../store/slices/productsSlice'
-import type { RootState, AppDispatch } from '../store'
 import {
+  Card,
   Row,
   Col,
-  Card,
   Button,
   Modal,
   Form,
   Input,
-  Spin,
-  Alert,
-  Typography,
-  Breadcrumb,
-  Table,
   InputNumber,
-  message,
+  Typography,
   Space,
+  Image,
+  Descriptions,
   Tag
 } from 'antd'
-import { ArrowLeftOutlined, PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
-import { Variant } from '../interfaces'
+import {
+  ArrowLeftOutlined,
+  PlusOutlined,
+  EditOutlined,
+  DeleteOutlined
+} from '@ant-design/icons'
+import {
+  LoadingSpinner,
+  ErrorAlert,
+  DataTable,
+  showDeleteConfirm,
+  showUpdateConfirm
+} from '../components'
+import { useApi, useMutation, usePaginatedApi } from '../hooks'
+import {
+  productsService,
+  variantsService,
+  categoriesService
+} from '../client/services'
+import type {
+  Variant,
+  VariantCreate,
+  VariantUpdate,
+  TableColumn
+} from '../client/types'
+import { formatDate, formatId, formatCurrency, commonRules } from '../utils'
 
 const { Title, Text } = Typography
-const { confirm } = Modal
 
 const ProductDetail: React.FC = () => {
   const { productId } = useParams<{ productId: string }>()
   const navigate = useNavigate()
-  const dispatch = useDispatch<AppDispatch>()
-
-  const { items: variants, loading, error } = useSelector((state: RootState) => state.variants)
-  const { currentProduct, currentProductLoading } = useSelector((state: RootState) => state.products)
   const [isModalVisible, setIsModalVisible] = useState(false)
   const [modalMode, setModalMode] = useState<'add' | 'edit'>('add')
   const [editingVariant, setEditingVariant] = useState<Variant | null>(null)
-
   const [form] = Form.useForm()
 
-  useEffect(() => {
-    if (productId) {
-      dispatch(fetchVariantsByProduct(productId))
-      dispatch(fetchProduct(productId))
-    }
-  }, [dispatch, productId])
+  // Fetch product details
+  const productApiCall = useCallback(() => productsService.getById(productId!), [productId])
+  const {
+    data: product,
+    loading: productLoading,
+    error: productError
+  } = useApi(productApiCall, { immediate: !!productId })
 
+  // Fetch product variants with pagination
+  const fetchVariants = useCallback((page: number, size: number) => variantsService.getAll({ page, pageSize: size, product_id: productId }), [productId])
+  const {
+    data: variants,
+    loading: variantsLoading,
+    refresh: refetchVariants
+  } = usePaginatedApi(fetchVariants, 1, 10)
+
+  // Fetch categories for product info
+  const { data: categoriesResponse } = useApi(() => categoriesService.getAll())
+
+  // Mutations
+  const createVariantMutation = useMutation(
+    (data: VariantCreate) => variantsService.create(data),
+    { onSuccess: () => { refetchVariants(); setIsModalVisible(false); form.resetFields() } }
+  )
+
+  const updateVariantMutation = useMutation(
+    ({ id, data }: { id: string; data: VariantUpdate }) => variantsService.update(id, data),
+    { onSuccess: () => { refetchVariants(); setIsModalVisible(false); form.resetFields() } }
+  )
+
+  const deleteVariantMutation = useMutation(
+    (id: string) => variantsService.delete(id),
+    { onSuccess: () => refetchVariants() }
+  )
+
+  const categories = categoriesResponse?.data || []
+
+  // Helper functions
+  const getCategoryName = (categoryId: string) => {
+    const category = categories.find(c => c.id === categoryId)
+    return category?.name || 'Unknown Category'
+  }
+
+  // Handlers
   const showAddModal = () => {
     setModalMode('add')
     setEditingVariant(null)
     form.resetFields()
+    form.setFieldsValue({ product_id: productId })
     setIsModalVisible(true)
   }
 
   const showEditModal = (variant: Variant) => {
-    confirm({
-      title: 'Edit Variant',
-      content: `Are you sure you want to edit this variant?`,
-      okText: 'Yes, Edit',
-      cancelText: 'Cancel',
-      onOk() {
-        setModalMode('edit')
-        setEditingVariant(variant)
-        form.setFieldsValue({
-          beverage_option: variant.beverage_option,
-          calories: variant.calories,
-          dietary_fibre_g: variant.dietary_fibre_g,
-          sugars_g: variant.sugars_g,
-          protein_g: variant.protein_g,
-          vitamin_a: variant.vitamin_a,
-          vitamin_c: variant.vitamin_c,
-          caffeine_mg: variant.caffeine_mg,
-          price: variant.price,
-          sales_rank: variant.sales_rank,
-        })
-        setIsModalVisible(true)
-      },
+    setModalMode('edit')
+    setEditingVariant(variant)
+    form.setFieldsValue({
+      product_id: variant.product_id,
+      beverage_option: variant.beverage_option,
+      calories: variant.calories,
+      caffeine_mg: variant.caffeine_mg,
+      price: variant.price,
+      sales_rank: variant.sales_rank,
     })
+    setIsModalVisible(true)
   }
 
-  const handleDelete = (id: string, variantName: string) => {
-    confirm({
-      title: 'Delete Variant',
-      content: `Are you sure you want to delete "${variantName}"? This action cannot be undone.`,
-      okText: 'Yes, Delete',
-      okType: 'danger',
-      cancelText: 'Cancel',
-      async onOk() {
-        try {
-          await dispatch(deleteVariant(id)).unwrap()
-          if (productId) {
-            dispatch(fetchVariantsByProduct(productId))
-          }
-          message.success('Variant deleted successfully')
-        } catch (error) {
-          message.error('Failed to delete variant')
-        }
-      },
+  const handleDeleteVariant = (variant: Variant) => {
+    const variantName = variant.beverage_option || `Variant ${formatId(variant.id)}`
+    showDeleteConfirm(variantName, () => {
+      void deleteVariantMutation.mutate(variant.id)
     })
   }
 
   const handleCancel = () => {
-    const hasChanges = form.isFieldsTouched()
+    form.resetFields()
+    setIsModalVisible(false)
+  }
 
-    if (hasChanges) {
-      confirm({
-        title: 'Discard Changes',
-        content: 'You have unsaved changes. Are you sure you want to close without saving?',
-        okText: 'Yes, Discard',
-        okType: 'danger',
-        cancelText: 'Continue Editing',
-        onOk() {
-          form.resetFields()
-          setIsModalVisible(false)
-        },
+  const onFinish = (values: VariantCreate | VariantUpdate) => {
+    if (modalMode === 'add') {
+      createVariantMutation.mutate(values as VariantCreate)
+    } else if (modalMode === 'edit' && editingVariant) {
+      const variantName = values.beverage_option || `Variant ${formatId(editingVariant.id)}`
+      showUpdateConfirm(variantName, () => {
+        updateVariantMutation.mutate({ id: editingVariant.id, data: values })
       })
-    } else {
-      setIsModalVisible(false)
     }
   }
 
-  const onFinish = (values: any) => {
-    const action = modalMode === 'add' ? 'create' : 'update'
-    const variantName = values.beverage_option || 'this variant'
-
-    confirm({
-      title: `${modalMode === 'add' ? 'Create' : 'Update'} Variant`,
-      content: `Are you sure you want to ${action} "${variantName}"?`,
-      okText: `Yes, ${modalMode === 'add' ? 'Create' : 'Update'}`,
-      cancelText: 'Cancel',
-      async onOk() {
-        try {
-          const variantData = { ...values, product_id: productId }
-
-          if (modalMode === 'add') {
-            await dispatch(createVariant(variantData)).unwrap()
-          } else if (modalMode === 'edit' && editingVariant) {
-            await dispatch(updateVariant({ id: editingVariant.id, ...variantData })).unwrap()
-          }
-
-          setIsModalVisible(false)
-          form.resetFields()
-          if (productId) {
-            dispatch(fetchVariantsByProduct(productId))
-          }
-          message.success(`Variant ${modalMode === 'add' ? 'created' : 'updated'} successfully`)
-        } catch (error) {
-          message.error(`Failed to ${action} variant`)
-        }
-      },
-    })
-  }
-
-  const columns = [
+  // Table columns for variants
+  const columns: TableColumn<Variant>[] = [
     {
-      title: 'Beverage Option',
-      dataIndex: 'beverage_option',
       key: 'beverage_option',
-      render: (text: string) => text || '-',
+      title: 'Option',
+      dataIndex: 'beverage_option',
+      render: (option: string) => option || 'Default',
+      sorter: true,
     },
     {
+      key: 'price',
       title: 'Price',
       dataIndex: 'price',
-      key: 'price',
-      render: (price: number) => price ? `$${price.toFixed(2)}` : '-',
+      render: (price: number) => price ? formatCurrency(price) : 'Not set',
+      sorter: true,
     },
     {
+      key: 'calories',
       title: 'Calories',
       dataIndex: 'calories',
-      key: 'calories',
-      render: (calories: number) => calories ? `${calories} cal` : '-',
+      render: (calories: number) => calories ? `${calories} cal` : 'Not set',
+      sorter: true,
     },
     {
+      key: 'caffeine_mg',
       title: 'Caffeine',
       dataIndex: 'caffeine_mg',
-      key: 'caffeine_mg',
-      render: (caffeine: number) => caffeine ? `${caffeine} mg` : '-',
+      render: (caffeine: number) => caffeine ? `${caffeine} mg` : 'Not set',
+      sorter: true,
     },
     {
+      key: 'sales_rank',
       title: 'Sales Rank',
       dataIndex: 'sales_rank',
-      key: 'sales_rank',
-      render: (rank: number) => rank ? <Tag color="blue">#{rank}</Tag> : '-',
+      render: (rank: number) => rank ? `#${rank}` : 'Not ranked',
+      sorter: true,
     },
     {
-      title: 'Actions',
+      key: 'id',
+      title: 'ID',
+      dataIndex: 'id',
+      render: (id: string) => formatId(id),
+      width: 100,
+    },
+    {
       key: 'actions',
-      render: (_: any, record: Variant) => (
+      title: 'Actions',
+      render: (_, record: Variant) => (
         <Space>
           <Button
             type="link"
             icon={<EditOutlined />}
             onClick={() => showEditModal(record)}
+            size="small"
           >
             Edit
           </Button>
@@ -201,70 +202,109 @@ const ProductDetail: React.FC = () => {
             type="link"
             danger
             icon={<DeleteOutlined />}
-            onClick={() => handleDelete(record.id, record.beverage_option || 'Variant')}
+            onClick={() => handleDeleteVariant(record)}
+            size="small"
           >
             Delete
           </Button>
         </Space>
       ),
+      width: 120,
     },
   ]
 
-  if (loading || currentProductLoading) return (
-    <div style={{ textAlign: 'center', padding: '50px' }}>
-      <Spin tip="Loading...">
-        <div style={{ minHeight: '200px' }} />
-      </Spin>
-    </div>
-  )
-
-  if (error) return <Alert message="Error" description={error} type="error" showIcon />
+  if (productLoading || variantsLoading) return <LoadingSpinner tip="Loading product details..." />
+  if (productError) return <ErrorAlert description={productError} onRetry={() => navigate('/products')} />
+  if (!product) return <ErrorAlert message="Product not found" onRetry={() => navigate('/products')} />
 
   return (
     <>
-      <Breadcrumb style={{ marginBottom: 16 }}>
-        <Breadcrumb.Item>
-          <Button
-            type="link"
-            icon={<ArrowLeftOutlined />}
-            onClick={() => navigate('/products')}
-            style={{ padding: 0 }}
-          >
-            Products
-          </Button>
-        </Breadcrumb.Item>
-        <Breadcrumb.Item>{currentProduct?.name || 'Product Details'}</Breadcrumb.Item>
-      </Breadcrumb>
-
       <div style={{ marginBottom: 24 }}>
-        <Title level={2}>Product Variants</Title>
-        <Text type="secondary">Manage variants for "{currentProduct?.name || 'this product'}"</Text>
-      </div>
-
-      <div style={{ marginBottom: 16, textAlign: 'right' }}>
-        <Button type="primary" icon={<PlusOutlined />} onClick={showAddModal}>
-          Add Variant
+        <Button
+          icon={<ArrowLeftOutlined />}
+          onClick={() => navigate('/products')}
+          style={{ marginBottom: 16 }}
+        >
+          Back to Products
         </Button>
+        <Title level={2}>{product.name}</Title>
+        <Text type="secondary">Product details and variants</Text>
       </div>
 
-      <Table
-        columns={columns}
-        dataSource={variants}
-        rowKey="id"
-        pagination={{
-          pageSize: 10,
-          showSizeChanger: true,
-          showQuickJumper: true,
-          showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} variants`,
-        }}
-      />
+      <Row gutter={[24, 24]}>
+        <Col xs={24} lg={8}>
+          <Card title="Product Information">
+            <div style={{ textAlign: 'center', marginBottom: 16 }}>
+              {product.link_image ? (
+                <Image
+                  src={product.link_image}
+                  alt={product.name}
+                  style={{ maxWidth: '100%', maxHeight: 300 }}
+                  fallback="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMIAAADDCAYAAADQvc6UAAABRWlDQ1BJQ0MgUHJvZmlsZQAAKJFjYGASSSwoyGFhYGDIzSspCnJ3UoiIjFJgf8LAwSDCIMogwMCcmFxc4BgQ4ANUwgCjUcG3awyMIPqyLsis7PPOq3QdDFcvjV3jOD1boQVTPQrgSkktTgbSf4A4LbmgqISBgTEFyFYuLykAsTuAbJEioKOA7DkgdjqEvQHEToKwj4DVhAQ5A9k3gGyB5IxEoBmML4BsnSQk8XQkNtReEOBxcfXxUQg1Mjc0dyHgXNJBSWpFCYh2zi+oLMpMzyhRcASGUqqCZ16yno6CkYGRAQMDKMwhqj/fAIcloxgHQqxAjIHBEugw5sUIsSQpBobtQPdLciLEVJYzMPBHMDBsayhILEqEO4DxG0txmrERhM29nYGBddr//5/DGRjYNRkY/l7////39v///y4Dmn+LgeHANwDrkl1AuO+pmgAAADhlWElmTU0AKgAAAAgAAYdpAAQAAAABAAAAGgAAAAAAAqACAAQAAAABAAAAwqADAAQAAAABAAAAwwAAAAD9b/HnAAAHlklEQVR4Ae3dP3Ik1RnG4W+FgYxN"
+                />
+              ) : (
+                <div style={{
+                  height: 200,
+                  backgroundColor: '#f5f5f5',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#999'
+                }}>
+                  No Image
+                </div>
+              )}
+            </div>
+
+            <Descriptions column={1} size="small">
+              <Descriptions.Item label="Name">{product.name}</Descriptions.Item>
+              <Descriptions.Item label="Category">
+                <Tag color="blue">{getCategoryName(product.categories_id)}</Tag>
+              </Descriptions.Item>
+              <Descriptions.Item label="Description">
+                {product.descriptions || 'No description'}
+              </Descriptions.Item>
+              <Descriptions.Item label="Product ID">
+                {formatId(product.id)}
+              </Descriptions.Item>
+              <Descriptions.Item label="Created">
+                {product.created_at ? formatDate(product.created_at) : 'N/A'}
+              </Descriptions.Item>
+            </Descriptions>
+          </Card>
+        </Col>
+
+        <Col xs={24} lg={16}>
+          <Card
+            title="Product Variants"
+            extra={
+              <Button
+                type="primary"
+                icon={<PlusOutlined />}
+                onClick={showAddModal}
+                loading={createVariantMutation.loading}
+              >
+                Add Variant
+              </Button>
+            }
+          >
+            <DataTable
+              data={variants}
+              columns={columns}
+              loading={variantsLoading || deleteVariantMutation.loading}
+              emptyText="No variants found. Click 'Add Variant' to create product variants."
+            />
+          </Card>
+        </Col>
+      </Row>
 
       <Modal
-        title={modalMode === 'add' ? 'Add Variant' : 'Edit Variant'}
+        title={modalMode === 'add' ? 'Add Product Variant' : 'Edit Product Variant'}
         open={isModalVisible}
         onCancel={handleCancel}
         onOk={() => form.submit()}
         okText={modalMode === 'add' ? 'Add' : 'Update'}
+        confirmLoading={createVariantMutation.loading || updateVariantMutation.loading}
         width={600}
       >
         <Form
@@ -272,87 +312,82 @@ const ProductDetail: React.FC = () => {
           layout="vertical"
           onFinish={onFinish}
           initialValues={{
+            product_id: productId,
             beverage_option: '',
-            calories: null,
-            dietary_fibre_g: null,
-            sugars_g: null,
-            protein_g: null,
-            vitamin_a: '',
-            vitamin_c: '',
-            caffeine_mg: null,
-            price: null,
-            sales_rank: null,
+            calories: undefined,
+            caffeine_mg: undefined,
+            price: undefined,
+            sales_rank: undefined
           }}
         >
+          <Form.Item name="product_id" style={{ display: 'none' }}>
+            <Input />
+          </Form.Item>
+
+          <Form.Item
+            name="beverage_option"
+            label="Beverage Option"
+            rules={[{ max: 100, message: 'Option name must be less than 100 characters' }]}
+          >
+            <Input placeholder="e.g., Small, Medium, Large, Decaf, etc." />
+          </Form.Item>
+
           <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item
-                name="beverage_option"
-                label="Beverage Option"
-                rules={[{ required: true, message: 'Please input the beverage option!' }]}
-              >
-                <Input />
-              </Form.Item>
-            </Col>
             <Col span={12}>
               <Form.Item
                 name="price"
                 label="Price ($)"
-                rules={[{ required: true, message: 'Please input the price!' }]}
+                rules={commonRules.price}
               >
-                <InputNumber min={0} step={0.01} style={{ width: '100%' }} />
+                <InputNumber
+                  placeholder="0.00"
+                  style={{ width: '100%' }}
+                  min={0}
+                  step={0.01}
+                  precision={2}
+                />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                name="sales_rank"
+                label="Sales Rank"
+                rules={[{ type: 'number', min: 1, message: 'Sales rank must be positive' }]}
+              >
+                <InputNumber
+                  placeholder="1"
+                  style={{ width: '100%' }}
+                  min={1}
+                />
               </Form.Item>
             </Col>
           </Row>
 
           <Row gutter={16}>
             <Col span={12}>
-              <Form.Item name="calories" label="Calories">
-                <InputNumber min={0} style={{ width: '100%' }} />
+              <Form.Item
+                name="calories"
+                label="Calories"
+                rules={[{ type: 'number', min: 0, message: 'Calories must be positive' }]}
+              >
+                <InputNumber
+                  placeholder="0"
+                  style={{ width: '100%' }}
+                  min={0}
+                />
               </Form.Item>
             </Col>
             <Col span={12}>
-              <Form.Item name="caffeine_mg" label="Caffeine (mg)">
-                <InputNumber min={0} style={{ width: '100%' }} />
-              </Form.Item>
-            </Col>
-          </Row>
-
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item name="dietary_fibre_g" label="Dietary Fibre (g)">
-                <InputNumber min={0} step={0.1} style={{ width: '100%' }} />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item name="sugars_g" label="Sugars (g)">
-                <InputNumber min={0} step={0.1} style={{ width: '100%' }} />
-              </Form.Item>
-            </Col>
-          </Row>
-
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item name="protein_g" label="Protein (g)">
-                <InputNumber min={0} step={0.1} style={{ width: '100%' }} />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item name="sales_rank" label="Sales Rank">
-                <InputNumber min={1} style={{ width: '100%' }} />
-              </Form.Item>
-            </Col>
-          </Row>
-
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item name="vitamin_a" label="Vitamin A">
-                <Input />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item name="vitamin_c" label="Vitamin C">
-                <Input />
+              <Form.Item
+                name="caffeine_mg"
+                label="Caffeine (mg)"
+                rules={[{ type: 'number', min: 0, message: 'Caffeine must be positive' }]}
+              >
+                <InputNumber
+                  placeholder="0"
+                  style={{ width: '100%' }}
+                  min={0}
+                />
               </Form.Item>
             </Col>
           </Row>

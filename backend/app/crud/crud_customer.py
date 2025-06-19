@@ -1,7 +1,7 @@
 import uuid
-from typing import Any, List, Tuple
+from typing import Any, List, Tuple, Optional
 
-from sqlmodel import Session, select, func
+from sqlmodel import Session, select, func, or_, and_
 
 from app.core.security import get_password_hash, verify_password
 from app.models import Customer, CustomerCreate, CustomerUpdate
@@ -66,3 +66,75 @@ def delete_customer(*, session: Session, customer: Customer) -> None:
     """Xóa một customer"""
     session.delete(customer)
     session.commit()
+
+# Tìm kiếm customers
+def search_customers(
+    *, 
+    session: Session, 
+    query: str, 
+    skip: int = 0, 
+    limit: int = 100,
+    location: Optional[str] = None,
+    age_min: Optional[int] = None,
+    age_max: Optional[int] = None
+) -> Tuple[List[Customer], int]:
+    """
+    Tìm kiếm khách hàng theo tên, username, location
+    """
+    search_conditions = []
+    
+    if query:
+        search_conditions.extend([
+            Customer.name.ilike(f"%{query}%"),
+            Customer.username.ilike(f"%{query}%"),
+            Customer.location.ilike(f"%{query}%")
+        ])
+    
+    # Lọc theo location cụ thể
+    if location:
+        search_conditions.append(Customer.location.ilike(f"%{location}%"))
+    
+    # Lọc theo độ tuổi
+    if age_min is not None:
+        search_conditions.append(Customer.age >= age_min)
+    if age_max is not None:
+        search_conditions.append(Customer.age <= age_max)
+    
+    # Kết hợp điều kiện
+    if query:
+        # Nếu có query, sử dụng OR cho các trường tìm kiếm text
+        text_conditions = [
+            Customer.name.ilike(f"%{query}%"),
+            Customer.username.ilike(f"%{query}%"),
+            Customer.location.ilike(f"%{query}%")
+        ]
+        where_clause = or_(*text_conditions)
+        
+        # Thêm các điều kiện lọc khác với AND
+        other_conditions = []
+        if location:
+            other_conditions.append(Customer.location.ilike(f"%{location}%"))
+        if age_min is not None:
+            other_conditions.append(Customer.age >= age_min)
+        if age_max is not None:
+            other_conditions.append(Customer.age <= age_max)
+        
+        if other_conditions:
+            where_clause = and_(where_clause, *other_conditions)
+    else:
+        # Nếu không có query, chỉ sử dụng các điều kiện lọc
+        if search_conditions:
+            where_clause = and_(*search_conditions)
+        else:
+            # Nếu không có điều kiện nào, trả về tất cả
+            return get_customers(session=session, skip=skip, limit=limit)
+    
+    # Đếm tổng số kết quả
+    count_statement = select(func.count()).select_from(Customer).where(where_clause)
+    count = session.exec(count_statement).one()
+    
+    # Lấy danh sách khách hàng
+    statement = select(Customer).where(where_clause).offset(skip).limit(limit)
+    customers = session.exec(statement).all()
+    
+    return customers, count

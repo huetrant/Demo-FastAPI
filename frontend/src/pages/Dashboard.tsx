@@ -1,13 +1,6 @@
-import React, { useEffect } from 'react'
-import { useSelector, useDispatch } from 'react-redux'
+import React from 'react'
 import { useNavigate } from 'react-router-dom'
-import { fetchProducts } from '../store/slices/productsSlice'
-import { fetchCategories } from '../store/slices/categoriesSlice'
-import { fetchOrders } from '../store/slices/ordersSlice'
-import { fetchCustomers } from '../store/slices/customersSlice'
-import { fetchStores } from '../store/slices/storesSlice'
-import type { RootState, AppDispatch } from '../store'
-import { Card, Row, Col, Spin, Alert, Typography, Statistic } from 'antd'
+import { Card, Row, Col, Typography, Statistic } from 'antd'
 import {
   ShoppingOutlined,
   AppstoreOutlined,
@@ -17,45 +10,64 @@ import {
   RiseOutlined,
   DollarOutlined
 } from '@ant-design/icons'
+import { LoadingSpinner, ErrorAlert } from '../components'
+import { useApi } from '../hooks'
+import {
+  productsService,
+  categoriesService,
+  ordersService,
+  customersService,
+  storesService
+} from '../client/services'
 
 const { Title } = Typography
 
 const Dashboard: React.FC = () => {
-  const dispatch = useDispatch<AppDispatch>()
   const navigate = useNavigate()
 
-  const { items: products, total: productsTotal, loading: productsLoading, error: productsError } = useSelector((state: RootState) => state.products)
-  const { items: categories, loading: categoriesLoading, error: categoriesError } = useSelector((state: RootState) => state.categories)
-  const { items: orders, loading: ordersLoading, error: ordersError } = useSelector((state: RootState) => state.orders)
-  const { items: customers, loading: customersLoading, error: customersError } = useSelector((state: RootState) => state.customers)
-  const { items: stores, loading: storesLoading, error: storesError } = useSelector((state: RootState) => state.stores)
-
-  useEffect(() => {
-    // Fetch all data for dashboard
-    dispatch(fetchProducts({ page: 1, pageSize: 1000 })) // Fetch all products
-    dispatch(fetchCategories())
-    dispatch(fetchOrders())
-    dispatch(fetchCustomers())
-    dispatch(fetchStores())
-  }, [dispatch])
-
-  const isLoading = productsLoading || categoriesLoading || ordersLoading || customersLoading || storesLoading
-  const hasError = productsError || categoriesError || ordersError || customersError || storesError
-
-  if (isLoading) return (
-    <Spin tip="Loading dashboard...">
-      <div style={{ textAlign: 'center', padding: '50px', minHeight: '200px' }} />
-    </Spin>
+  // Fetch all data using new hooks
+  const { data: productsResponse, loading: productsLoading, error: productsError } = useApi(
+    () => productsService.getAll({ page: 1, pageSize: 1000 }),
+    { deps: [] }
+  )
+  const { data: categoriesResponse, loading: categoriesLoading, error: categoriesError } = useApi(
+    () => categoriesService.getAll(),
+    { deps: [] }
+  )
+  const { data: ordersResponse, loading: ordersLoading, error: ordersError } = useApi(
+    () => ordersService.getAll(),
+    { deps: [] }
+  )
+  const { data: customersResponse, loading: customersLoading, error: customersError } = useApi(
+    () => customersService.getAll(),
+    { deps: [] }
+  )
+  const { data: storesResponse, loading: storesLoading, error: storesError } = useApi(
+    () => storesService.getAll(),
+    { deps: [] }
   )
 
-  if (hasError) return (
-    <Alert
-      message="Error"
-      description="Failed to load dashboard data"
-      type="error"
-      showIcon
+  // Extract data from responses
+  const products = productsResponse?.data || []
+  const productsTotal = productsResponse?.count || products.length
+  const categories = categoriesResponse?.data || []
+  const orders = ordersResponse?.data || []
+  const customers = customersResponse?.data || []
+  const stores = storesResponse?.data || []
+
+  // Show loading state
+  if (productsLoading || categoriesLoading || ordersLoading || customersLoading || storesLoading) {
+    return <LoadingSpinner />
+  }
+
+  // Show error state
+  if (productsError || categoriesError || ordersError || customersError || storesError) {
+    return (<ErrorAlert
+      message="Error loading dashboard data"
+      description={productsError || categoriesError || ordersError || customersError || storesError || 'Unknown error'}
     />
-  )
+    )
+  }
 
   // Calculate statistics
   const totalRevenue = orders.reduce((sum, order) => sum + (order.total_amount || 0), 0)

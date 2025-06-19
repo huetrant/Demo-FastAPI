@@ -1,44 +1,53 @@
-import React, { useEffect, useState } from 'react'
-import { useSelector, useDispatch } from 'react-redux'
-import { fetchStores, createStore, updateStore, deleteStore } from '../store/slices/storesSlice'
-import type { RootState, AppDispatch } from '../store'
-import {
-  Row,
-  Col,
-  Card,
-  Button,
-  Modal,
-  Form,
-  Input,
-  Spin,
-  Alert,
-  Typography,
-  message,
-  Pagination,
-  Tag
-} from 'antd'
-import { PlusOutlined, EditOutlined, DeleteOutlined, ShopOutlined, PhoneOutlined, EnvironmentOutlined, ClockCircleOutlined } from '@ant-design/icons'
-import { Store } from '../interfaces'
+import React, { useState } from 'react'
+import { Button, Modal, Form, Input, Typography, Space } from 'antd'
+import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
+import { 
+  LoadingSpinner, 
+  ErrorAlert, 
+  DataTable,
+  showDeleteConfirm, 
+  showUpdateConfirm 
+} from '../components'
+import { useApi, useMutation } from '../hooks'
+import { storesService } from '../client/services'
+import type { Store, StoreCreate, StoreUpdate, TableColumn } from '../client/types'
+import { formatDate, formatId, commonRules } from '../utils'
 
 const { Title, Text } = Typography
-const { confirm } = Modal
 
 const Stores: React.FC = () => {
-  const dispatch = useDispatch<AppDispatch>()
-  const { items, loading, error } = useSelector((state: RootState) => state.stores)
-  const [currentPage, setCurrentPage] = useState(1)
-  const pageSize = 8
-
   const [isModalVisible, setIsModalVisible] = useState(false)
   const [modalMode, setModalMode] = useState<'add' | 'edit'>('add')
   const [editingStore, setEditingStore] = useState<Store | null>(null)
-
   const [form] = Form.useForm()
 
-  useEffect(() => {
-    dispatch(fetchStores())
-  }, [dispatch])
+  // Fetch stores
+  const { 
+    data: storesResponse, 
+    loading, 
+    error, 
+    execute: refetchStores 
+  } = useApi(() => storesService.getAll())
 
+  // Mutations
+  const createMutation = useMutation(
+    (data: StoreCreate) => storesService.create(data),
+    { onSuccess: () => { refetchStores(); setIsModalVisible(false); form.resetFields() } }
+  )
+
+  const updateMutation = useMutation(
+    ({ id, data }: { id: string; data: StoreUpdate }) => storesService.update(id, data),
+    { onSuccess: () => { refetchStores(); setIsModalVisible(false); form.resetFields() } }
+  )
+
+  const deleteMutation = useMutation(
+    (id: string) => storesService.delete(id),
+    { onSuccess: () => refetchStores() }
+  )
+
+  const stores = storesResponse?.data || []
+
+  // Handlers
   const showAddModal = () => {
     setModalMode('add')
     setEditingStore(null)
@@ -58,23 +67,9 @@ const Stores: React.FC = () => {
     setIsModalVisible(true)
   }
 
-  const handleDelete = (id: string, storeName: string) => {
-    confirm({
-      title: 'Delete Store',
-      content: `Are you sure you want to delete "${storeName}"? This action cannot be undone.`,
-      okText: 'Yes, Delete',
-      okType: 'danger',
-      cancelText: 'Cancel',
-      async onOk() {
-        try {
-          await dispatch(deleteStore(id)).unwrap()
-          dispatch(fetchStores())
-          message.success('Store deleted successfully')
-        } catch (error) {
-          message.error('Failed to delete store')
-        }
-      },
-    })
+  const handleDelete = (store: Store) => {
+    const storeName = store.name || store.name_store || 'this store'
+    showDeleteConfirm(storeName, () => deleteMutation.mutate(store.id))
   }
 
   const handleCancel = () => {
@@ -82,57 +77,88 @@ const Stores: React.FC = () => {
     setIsModalVisible(false)
   }
 
-  const onFinish = async (values: any) => {
+  const onFinish = async (values: StoreCreate | StoreUpdate) => {
     if (modalMode === 'add') {
-      // Create: No confirmation needed
-      try {
-        await dispatch(createStore(values)).unwrap()
-        setIsModalVisible(false)
-        form.resetFields()
-        dispatch(fetchStores())
-        message.success('Store created successfully')
-      } catch (error) {
-        message.error('Failed to create store')
-      }
+      createMutation.mutate(values as StoreCreate)
     } else if (modalMode === 'edit' && editingStore) {
-      // Update: Confirmation needed
-      confirm({
-        title: 'Update Store',
-        content: `Are you sure you want to update "${values.name || editingStore.name || editingStore.name_store}"?`,
-        okText: 'Yes, Update',
-        cancelText: 'Cancel',
-        async onOk() {
-          try {
-            await dispatch(updateStore({ id: editingStore.id, ...values })).unwrap()
-            setIsModalVisible(false)
-            form.resetFields()
-            dispatch(fetchStores())
-            message.success('Store updated successfully')
-          } catch (error) {
-            message.error('Failed to update store')
-          }
-        },
+      const storeName = values.name || editingStore.name || editingStore.name_store || 'this store'
+      showUpdateConfirm(storeName, () => {
+        updateMutation.mutate({ id: editingStore.id, data: values })
       })
     }
   }
 
-  if (loading) return (
-    <div style={{ textAlign: 'center', padding: '50px' }}>
-      <Spin tip="Loading stores...">
-        <div style={{ minHeight: '200px' }} />
-      </Spin>
-    </div>
-  )
+  // Table columns
+  const columns: TableColumn<Store>[] = [
+    {
+      key: 'name',
+      title: 'Name',
+      dataIndex: 'name',
+      render: (name: string, record: Store) => name || record.name_store || 'Unnamed Store',
+      sorter: true,
+    },
+    {
+      key: 'address',
+      title: 'Address',
+      dataIndex: 'address',
+      render: (address: string) => address || 'No address',
+    },
+    {
+      key: 'phone',
+      title: 'Phone',
+      dataIndex: 'phone',
+      render: (phone: string) => phone || 'No phone',
+    },
+    {
+      key: 'open_close',
+      title: 'Hours',
+      dataIndex: 'open_close',
+      render: (hours: string) => hours || 'No hours specified',
+    },
+    {
+      key: 'id',
+      title: 'ID',
+      dataIndex: 'id',
+      render: (id: string) => formatId(id),
+      width: 100,
+    },
+    {
+      key: 'created_at',
+      title: 'Created',
+      dataIndex: 'created_at',
+      render: (date: string) => formatDate(date),
+      width: 120,
+    },
+    {
+      key: 'actions',
+      title: 'Actions',
+      render: (_, record: Store) => (
+        <Space>
+          <Button 
+            type="link" 
+            icon={<EditOutlined />} 
+            onClick={() => showEditModal(record)}
+            size="small"
+          >
+            Edit
+          </Button>
+          <Button 
+            type="link" 
+            danger 
+            icon={<DeleteOutlined />} 
+            onClick={() => handleDelete(record)}
+            size="small"
+          >
+            Delete
+          </Button>
+        </Space>
+      ),
+      width: 120,
+    },
+  ]
 
-  if (error) return <Alert message="Error" description={error} type="error" showIcon />
-
-  // Pagination logic
-  const startIndex = (currentPage - 1) * pageSize
-  const endIndex = startIndex + pageSize
-  const currentItems = Array.isArray(items) ? items.slice(startIndex, endIndex) : []
-
-  console.log('Stores items:', items)
-  console.log('Current items:', currentItems)
+  if (loading) return <LoadingSpinner tip="Loading stores..." />
+  if (error) return <ErrorAlert description={error} onRetry={refetchStores} />
 
   return (
     <>
@@ -142,98 +168,22 @@ const Stores: React.FC = () => {
       </div>
 
       <div style={{ marginBottom: 16, textAlign: 'right' }}>
-        <Button type="primary" icon={<PlusOutlined />} onClick={showAddModal}>
+        <Button 
+          type="primary" 
+          icon={<PlusOutlined />} 
+          onClick={showAddModal}
+          loading={createMutation.loading}
+        >
           Add Store
         </Button>
       </div>
 
-      {currentItems.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '50px' }}>
-          <Text type="secondary">No stores found. Click "Add Store" to create your first store.</Text>
-        </div>
-      ) : (
-        <Row gutter={[16, 16]}>
-          {currentItems.map((item: Store) => (
-            <Col key={item.id} span={6}>
-              <Card
-                size="small"
-                style={{
-                  height: '100%',
-                  transition: 'all 0.3s ease',
-                }}
-                hoverable
-                actions={[
-                  <Button
-                    type="link"
-                    size="small"
-                    icon={<EditOutlined />}
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      showEditModal(item)
-                    }}
-                  >
-                    Edit
-                  </Button>,
-                  <Button
-                    type="link"
-                    size="small"
-                    danger
-                    icon={<DeleteOutlined />}
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      handleDelete(item.id, item.name || item.name_store || 'Store')
-                    }}
-                  >
-                    Delete
-                  </Button>,
-                ]}
-              >
-                <div style={{ textAlign: 'center', padding: '20px 0' }}>
-                  <ShopOutlined style={{ fontSize: '48px', color: '#52c41a', marginBottom: '16px' }} />
-                  <Card.Meta
-                    title={<div style={{ fontSize: '16px', fontWeight: 'bold', marginBottom: '12px' }}>{item.name || item.name_store || 'Unnamed Store'}</div>}
-                    description={
-                      <div style={{ textAlign: 'left' }}>
-                        {item.address && (
-                          <div style={{ marginBottom: '8px', display: 'flex', alignItems: 'center' }}>
-                            <EnvironmentOutlined style={{ marginRight: '8px', color: '#1890ff' }} />
-                            <span style={{ fontSize: '12px' }}>{item.address}</span>
-                          </div>
-                        )}
-                        {item.phone && (
-                          <div style={{ marginBottom: '8px', display: 'flex', alignItems: 'center' }}>
-                            <PhoneOutlined style={{ marginRight: '8px', color: '#1890ff' }} />
-                            <span style={{ fontSize: '12px' }}>{item.phone}</span>
-                          </div>
-                        )}
-                        {item.open_close && (
-                          <div style={{ display: 'flex', alignItems: 'center' }}>
-                            <ClockCircleOutlined style={{ marginRight: '8px', color: '#1890ff' }} />
-                            <Tag color="green" style={{ fontSize: '11px' }}>{item.open_close}</Tag>
-                          </div>
-                        )}
-                      </div>
-                    }
-                  />
-                </div>
-              </Card>
-            </Col>
-          ))}
-        </Row>
-      )}
-
-      {items.length > pageSize && (
-        <Pagination
-          current={currentPage}
-          pageSize={pageSize}
-          total={items.length}
-          onChange={page => setCurrentPage(page)}
-          style={{ marginTop: 24, textAlign: 'center' }}
-          showSizeChanger={false}
-          showQuickJumper
-          showTotal={(total, range) => `${range[0]}-${range[1]} of ${total} stores`}
-        />
-      )}
+      <DataTable
+        data={stores}
+        columns={columns}
+        loading={loading || deleteMutation.loading}
+        emptyText="No stores found. Click 'Add Store' to create your first store."
+      />
 
       <Modal
         title={modalMode === 'add' ? 'Add Store' : 'Edit Store'}
@@ -241,6 +191,7 @@ const Stores: React.FC = () => {
         onCancel={handleCancel}
         onOk={() => form.submit()}
         okText={modalMode === 'add' ? 'Add' : 'Update'}
+        confirmLoading={createMutation.loading || updateMutation.loading}
         width={600}
       >
         <Form
@@ -252,40 +203,37 @@ const Stores: React.FC = () => {
           <Form.Item
             name="name"
             label="Store Name"
-            rules={[{ required: true, message: 'Please input the store name!' }]}
+            rules={commonRules.name}
           >
             <Input placeholder="Enter store name" />
           </Form.Item>
+          
           <Form.Item
             name="address"
             label="Address"
-            rules={[{ required: true, message: 'Please input the store address!' }]}
+            rules={[{ max: 200, message: 'Address must be less than 200 characters' }]}
           >
-            <Input.TextArea
-              rows={3}
+            <Input.TextArea 
+              rows={2} 
               placeholder="Enter store address"
-              showCount
-              maxLength={255}
             />
           </Form.Item>
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item
-                name="phone"
-                label="Phone Number"
-              >
-                <Input placeholder="Enter phone number" />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item
-                name="open_close"
-                label="Operating Hours"
-              >
-                <Input placeholder="e.g., 9:00 AM - 10:00 PM" />
-              </Form.Item>
-            </Col>
-          </Row>
+
+          <Form.Item
+            name="phone"
+            label="Phone"
+            rules={commonRules.phone}
+          >
+            <Input placeholder="Enter phone number" />
+          </Form.Item>
+
+          <Form.Item
+            name="open_close"
+            label="Operating Hours"
+            rules={[{ max: 100, message: 'Hours must be less than 100 characters' }]}
+          >
+            <Input placeholder="e.g., 9:00 AM - 10:00 PM" />
+          </Form.Item>
         </Form>
       </Modal>
     </>
