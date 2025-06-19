@@ -19,6 +19,7 @@ import {
   customersService,
   storesService
 } from '../client/services'
+import { formatCurrency } from '../utils'
 
 const { Title } = Typography
 
@@ -111,17 +112,13 @@ const Dashboard: React.FC = () => {
     },
     {
       title: 'Total Revenue',
-      value: totalRevenue,
-      prefix: '$',
-      precision: 2,
+      value: formatCurrency(totalRevenue),
       icon: <DollarOutlined style={{ color: '#13c2c2' }} />,
       color: '#13c2c2'
     },
     {
       title: 'Avg Order Value',
-      value: avgOrderValue,
-      prefix: '$',
-      precision: 2,
+      value: formatCurrency(avgOrderValue),
       icon: <RiseOutlined style={{ color: '#f5222d' }} />,
       color: '#f5222d'
     }

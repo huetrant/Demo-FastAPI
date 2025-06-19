@@ -116,6 +116,11 @@ export interface Variant extends BaseModel {
   product_id: string
   beverage_option?: string
   calories?: number
+  dietary_fibre_g?: number
+  sugars_g?: number
+  protein_g?: number
+  vitamin_a?: string
+  vitamin_c?: string
   caffeine_mg?: number
   price?: number
   sales_rank?: number
@@ -125,6 +130,11 @@ export interface VariantCreate {
   product_id: string
   beverage_option?: string
   calories?: number
+  dietary_fibre_g?: number
+  sugars_g?: number
+  protein_g?: number
+  vitamin_a?: string
+  vitamin_c?: string
   caffeine_mg?: number
   price?: number
   sales_rank?: number
@@ -242,7 +252,7 @@ export interface TableProps<T> {
     pageSize: number
     total: number
     onChange: (page: number, pageSize: number) => void
-  }
+  } | false
   rowKey?: keyof T | ((record: T) => string)
   onRow?: (record: T) => any
 }

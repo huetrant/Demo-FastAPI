@@ -10,6 +10,7 @@ from app.models import (
     OrderDetailUpdate,
     OrderDetailPublic,
     OrderDetailsPublic,
+    OrderDetailWithVariantPublic,
 )
 from app.api.dependency import SessionDep
 from app.crud.crud_order_detail import (
@@ -27,7 +28,7 @@ def read_order_details(
     session: SessionDep, skip: int = 0, limit: int = 100, order_id: uuid.UUID = None
 ) -> Any:
     order_details, count = crud_get_order_details(session=session, skip=skip, limit=limit, order_id=order_id)
-    data = [OrderDetailPublic.model_validate(od) for od in order_details]
+    data = [OrderDetailWithVariantPublic.model_validate(od) for od in order_details]
     return OrderDetailsPublic(data=data, count=count)
 
 @router.get("/{id}", response_model=OrderDetailPublic)
@@ -37,7 +38,7 @@ def read_order_detail(
     order_detail = crud_get_order_detail(session=session, id=id)
     if not order_detail:
         raise HTTPException(status_code=404, detail="OrderDetail not found")
-    return OrderDetailPublic.model_validate(order_detail)
+    return OrderDetailWithVariantPublic.model_validate(order_detail)
 
 @router.post("/", response_model=OrderDetailPublic)
 def create_order_detail(

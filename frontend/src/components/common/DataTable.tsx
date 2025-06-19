@@ -29,7 +29,7 @@ export function DataTable<T extends Record<string, any>>({
     width: col.width,
   }))
 
-  const antPagination = pagination ? {
+  const antPagination = pagination === false ? false : pagination ? {
     current: pagination.current,
     pageSize: pagination.pageSize,
     total: pagination.total,
@@ -39,21 +39,38 @@ export function DataTable<T extends Record<string, any>>({
       `${range[0]}-${range[1]} of ${total} items`,
     onChange: pagination.onChange,
     onShowSizeChange: pagination.onChange,
-  } : false
+  } : undefined
 
   return (
-    <Table
-      columns={antColumns}
-      dataSource={data}
-      loading={loading}
-      pagination={antPagination}
-      rowKey={typeof rowKey === 'function' ? rowKey : (record) => record[rowKey as string]}
-      onRow={onRow}
-      scroll={scroll}
-      size={size}
-      locale={{ emptyText }}
-      {...props}
-    />
+    <>
+      <style>
+        {`
+          /* Enhanced loading state */
+          .ant-table-loading .ant-table-tbody > tr > td {
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%) !important;
+            background-size: 200% 100% !important;
+            animation: loading-shimmer 1.5s infinite !important;
+          }
+          
+          @keyframes loading-shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+          }
+        `}
+      </style>
+      <Table
+        columns={antColumns}
+        dataSource={data}
+        loading={loading}
+        pagination={antPagination}
+        rowKey={typeof rowKey === 'function' ? rowKey : (record) => record[rowKey as string]}
+        onRow={onRow}
+        scroll={scroll}
+        size={size}
+        locale={{ emptyText }}
+        {...props}
+      />
+    </>
   )
 }
 

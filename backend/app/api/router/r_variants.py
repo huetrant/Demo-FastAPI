@@ -1,8 +1,9 @@
 import uuid
-from typing import Any, Optional
+from typing import Any, Optional, List
 
 from fastapi import APIRouter, HTTPException, Query
 from sqlmodel import select, func
+from pydantic import BaseModel
 
 from app.models import (
     Variant,
@@ -19,6 +20,7 @@ from app.crud.crud_variant import (
     get_variants as crud_get_variants,
     delete_variant as crud_delete_variant,
     search_variants as crud_search_variants,
+    get_variants_by_ids as crud_get_variants_by_ids,
 )
 
 router = APIRouter(prefix="/variants", tags=["variants"])
@@ -69,6 +71,28 @@ def delete_variant(
         raise HTTPException(status_code=404, detail="Variant not found")
     crud_delete_variant(session=session, variant=variant)
     return {"message": "Variant deleted successfully"}
+
+class VariantBatchRequest(BaseModel):
+    ids: List[uuid.UUID]
+
+@router.post("/batch", response_model=List[VariantPublic])
+def get_variants_by_ids(
+    session: SessionDep,
+    request: VariantBatchRequest
+) -> Any:
+    print(f"🔍 Batch request received with {len(request.ids)} IDs:")
+    for i, variant_id in enumerate(request.ids):
+        print(f"  {i+1}. {variant_id} (type: {type(variant_id)})")
+    
+    variants = crud_get_variants_by_ids(session=session, ids=request.ids)
+    print(f"📋 Found {len(variants)} variants in database")
+    
+    for i, variant in enumerate(variants):
+        print(f"  {i+1}. ID: {variant.id}, Name: {variant.beverage_option}")
+    
+    data = [VariantPublic.model_validate(var) for var in variants]
+    print(f"✅ Returning {len(data)} variants to frontend")
+    return data
 
 @router.get("/search", response_model=VariantsPublic)
 def search_variants(

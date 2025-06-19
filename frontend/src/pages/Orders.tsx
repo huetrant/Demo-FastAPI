@@ -1,7 +1,7 @@
 import React, { useCallback, useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Button, Modal, Form, Select, InputNumber, DatePicker, Typography, Space } from 'antd'
-import { PlusOutlined, DeleteOutlined, EyeOutlined } from '@ant-design/icons'
+import { Button, Modal, Form, Select, InputNumber, DatePicker, Typography, Space, Tag, Badge } from 'antd'
+import { PlusOutlined, DeleteOutlined, EyeOutlined, ShopOutlined, UserOutlined, CalendarOutlined, DollarOutlined } from '@ant-design/icons'
 import {
   LoadingSpinner,
   ErrorAlert,
@@ -12,7 +12,8 @@ import {
 import { usePaginatedApi, useMutation } from '../hooks'
 import { ordersService, customersService, storesService } from '../client/services'
 import type { Order, OrderCreate, OrderUpdate, TableColumn, Customer, Store } from '../client/types'
-import { formatDate, formatCurrency, commonRules } from '../utils'
+import { formatDate, formatCurrency, formatPriceWithColor, formatValueWithColor, commonRules } from '../utils'
+import { PriceCell } from '../utils/colorFormatters'
 
 const { Title, Text } = Typography
 const { Option } = Select
@@ -174,43 +175,125 @@ const Orders: React.FC = () => {
   // Generate sequential order number continuing across pages
   const getOrderNumber = (index: number) => {
     const orderNum = (currentPage - 1) * pageSize + index + 1
-    return `#${String(orderNum).padStart(4, '0')}`
+    return String(orderNum).padStart(4, '0')
+  }
+
+  // Only use colors for important differentiation - customers and stores don't need colors
+  // Remove color functions for customers and stores to reduce visual noise
+
+  // Get order status color based on total amount
+  const getOrderStatusColor = (totalAmount: number) => {
+    // Simplified to 2 colors
+    if (totalAmount >= 50) return 'green' // Medium and high value orders
+    if (totalAmount >= 20) return 'blue' // Regular orders
+    return 'default' // Low value orders
+  }
+
+  // Get order priority based on date (recent orders get higher priority)
+  const getOrderPriority = (orderDate: string | undefined) => {
+    if (!orderDate) return { color: 'default', text: 'Unknown' }
+    const date = new Date(orderDate)
+    const now = new Date()
+    const diffHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60)
+
+    if (diffHours <= 24) return { color: 'red', text: 'Recent' }
+    if (diffHours <= 72) return { color: 'orange', text: 'This Week' }
+    return { color: 'default', text: 'Older' }
   }
 
   const handleOrderClick = (orderId: string) => {
     navigate(`/orders/${orderId}`)
   }
 
+  // Format order total with custom thresholds
+  const formatOrderTotal = (amount: number) => {
+    if (!amount) return { text: '0 VND', color: '#d9d9d9' }
+
+    // Determine color based on amount thresholds
+    let color: string
+    if (amount >= 1000000) color = '#52c41a' // Trên 1.000.000 - màu xanh lá
+    else if (amount >= 500000) color = '#fa8c16' // Từ 500.000 đến 1.000.000 - màu cam
+    else color = '#f5222d' // Dưới 500.000 - màu đỏ
+
+    // Format currency with Vietnamese locale
+    const formattedAmount = formatCurrency(amount)
+
+    return {
+      text: `💰 ${formattedAmount}`,
+      color
+    }
+  }
+
   const columns: TableColumn<Order>[] = [
     {
       key: 'orderNumber',
-      title: 'Order #',
-      render: (_, __, index: number) => getOrderNumber(index),
+      title: 'Order',
+      render: (_, record: Order, index: number) => {
+        const orderNumber = getOrderNumber(index)
+        const priority = getOrderPriority(record.order_date)
+        return (
+          <Space>
+            <Badge color={priority.color} />
+            <span style={{ fontWeight: 'bold' }}>{orderNumber}</span>
+          </Space>
+        )
+      },
     },
     {
       key: 'customer',
       title: 'Customer',
       dataIndex: 'customer_id',
-      render: (customerId: string) => getCustomerName(customerId),
+      render: (customerId: string) => {
+        const customerName = getCustomerName(customerId)
+        return (
+          <span style={{ display: 'flex', alignItems: 'center' }}>
+            <UserOutlined style={{ marginRight: 8, color: '#1890ff' }} />
+            {customerName}
+          </span>
+        )
+      },
     },
     {
       key: 'store',
       title: 'Store',
       dataIndex: 'store_id',
-      render: (storeId: string) => getStoreName(storeId),
+      render: (storeId: string) => {
+        const storeName = getStoreName(storeId)
+        return (
+          <span style={{ display: 'flex', alignItems: 'center' }}>
+            <ShopOutlined style={{ marginRight: 8, color: '#52c41a' }} />
+            {storeName}
+          </span>
+        )
+      },
     },
     {
       key: 'total_amount',
       title: 'Total',
       dataIndex: 'total_amount',
-      render: (amount: number) => formatCurrency(amount),
+      render: (amount: number) => {
+        const formatted = formatOrderTotal(amount)
+        return (
+          <span style={{ color: formatted.color, fontWeight: 'bold' }}>
+            {formatted.text}
+          </span>
+        )
+      },
       sorter: true,
     },
     {
       key: 'order_date',
       title: 'Date',
       dataIndex: 'order_date',
-      render: (date: string) => formatDate(date),
+      render: (date: string) => {
+        const formattedDate = formatDate(date)
+        return (
+          <span style={{ display: 'flex', alignItems: 'center' }}>
+            <CalendarOutlined style={{ marginRight: 4 }} />
+            {formattedDate}
+          </span>
+        )
+      },
       sorter: true,
     },
     {
@@ -282,9 +365,51 @@ const Orders: React.FC = () => {
 
   return (
     <>
-      <div style={{ marginBottom: 24 }}>
-        <Title level={2}>Orders</Title>
-        <Text type="secondary">Manage customer orders and transactions</Text>
+      <style>
+        {`
+          .orders-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 24px;
+            border-radius: 8px;
+            margin-bottom: 24px;
+            color: white;
+          }
+          .orders-stats {
+            background: white;
+            padding: 16px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            margin-bottom: 16px;
+          }
+        `}
+      </style>
+
+      <div className="orders-header">
+        <Space direction="vertical" size="small">
+          <Title level={2} style={{ color: 'white', margin: 0 }}>
+            📋 Orders Management
+          </Title>
+          <Text style={{ color: 'rgba(255,255,255,0.8)' }}>
+            Manage customer orders and transactions with enhanced visual indicators
+          </Text>
+        </Space>
+      </div>
+
+      <div className="orders-stats">
+        <Space size="large">
+          <div>
+            <Text type="secondary">Total Orders: </Text>
+            <Text strong style={{ color: '#1890ff' }}>{totalOrders}</Text>
+          </div>
+          <div>
+            <Text type="secondary">Current Page: </Text>
+            <Text strong style={{ color: '#52c41a' }}>{currentPage}</Text>
+          </div>
+          <div>
+            <Text type="secondary">Page Size: </Text>
+            <Text strong style={{ color: '#fa8c16' }}>{pageSize}</Text>
+          </div>
+        </Space>
       </div>
 
       <div style={{ marginBottom: 16, textAlign: 'right' }}>
@@ -293,8 +418,14 @@ const Orders: React.FC = () => {
           icon={<PlusOutlined />}
           onClick={showAddModal}
           loading={createMutation.loading}
+          size="large"
+          style={{
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            border: 'none',
+            boxShadow: '0 4px 12px rgba(102, 126, 234, 0.4)'
+          }}
         >
-          Add Order
+          Add New Order
         </Button>
       </div>
 

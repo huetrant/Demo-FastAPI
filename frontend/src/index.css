@@ -5,3 +5,91 @@ body {
     Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
   background-color: #f0f2f5;
 }
+
+/* Enhanced Table Header Styles - Global */
+.ant-table-thead>tr>th {
+  background: linear-gradient(135deg, #1890ff 0%, #722ed1 100%) !important;
+  color: white !important;
+  font-weight: 600 !important;
+  font-size: 14px !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2) !important;
+  border-bottom: 2px solid #1890ff !important;
+  position: relative !important;
+  transition: all 0.3s ease !important;
+}
+
+.ant-table-thead>tr>th::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.1);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+
+.ant-table-thead>tr>th:hover::before {
+  opacity: 1;
+}
+
+.ant-table-thead>tr>th:hover {
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 12px rgba(24, 144, 255, 0.3) !important;
+}
+
+/* Sorter icons styling */
+.ant-table-thead>tr>th .ant-table-column-sorter {
+  color: rgba(255, 255, 255, 0.8) !important;
+  transition: color 0.2s ease !important;
+}
+
+.ant-table-thead>tr>th .ant-table-column-sorter:hover {
+  color: #fff !important;
+}
+
+.ant-table-thead>tr>th .ant-table-column-sorter-up.active,
+.ant-table-thead>tr>th .ant-table-column-sorter-down.active {
+  color: #52c41a !important;
+}
+
+/* Filter trigger styling */
+.ant-table-thead>tr>th .ant-table-filter-trigger {
+  color: rgba(255, 255, 255, 0.8) !important;
+  transition: color 0.2s ease !important;
+}
+
+.ant-table-thead>tr>th .ant-table-filter-trigger:hover {
+  color: #fff !important;
+}
+
+/* Table body hover effect enhancement */
+.ant-table-tbody>tr:hover>td {
+  background-color: #e6f7ff !important;
+  transition: background-color 0.2s ease !important;
+}
+
+/* Table border enhancements */
+.ant-table-container {
+  border-radius: 8px !important;
+  overflow: hidden !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
+  border: 1px solid #d9d9d9 !important;
+}
+
+/* Alternating row colors for better readability */
+.ant-table-tbody>tr:nth-child(even)>td {
+  background-color: #fafafa !important;
+}
+
+/* Table pagination styling */
+.ant-pagination .ant-pagination-item-active {
+  background: #1890ff !important;
+  border-color: #1890ff !important;
+}
+
+.ant-pagination .ant-pagination-item-active a {
+  color: white !important;
+}

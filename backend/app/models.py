@@ -211,6 +211,11 @@ class OrderDetailPublic(OrderDetailBase):
     order_id: uuid.UUID
     variant_id: uuid.UUID
 
+from typing import Optional
+
+class OrderDetailWithVariantPublic(OrderDetailPublic):
+    variant: Optional["VariantPublic"] = None
+
 class OrderDetailsPublic(SQLModel):
     data: List[OrderDetailPublic]
     count: int

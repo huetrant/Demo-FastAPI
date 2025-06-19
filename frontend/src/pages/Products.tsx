@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Card, Row, Col, Button, Modal, Form, Input, Select, Typography, Image } from 'antd'
-import { PlusOutlined, EditOutlined, DeleteOutlined, EyeOutlined } from '@ant-design/icons'
+import { Card, Row, Col, Button, Modal, Form, Input, Select, Typography, Image, Tag, Space, Badge, Divider, Statistic } from 'antd'
+import { PlusOutlined, EditOutlined, DeleteOutlined, EyeOutlined, ShoppingOutlined, AppstoreOutlined, StarOutlined } from '@ant-design/icons'
 import {
   LoadingSpinner,
   ErrorAlert,
@@ -24,8 +24,12 @@ const Products: React.FC = () => {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
   const [form] = Form.useForm()
 
-  // Fetch products with pagination
-  const fetchProducts = useCallback((page: number, size: number) => productsService.getAll({ page, pageSize: size }), [])
+  // Fetch products with pagination - Fix pagination parameters
+  const fetchProducts = useCallback((page: number, size: number) => {
+    const skip = (page - 1) * size
+    return productsService.getAll({ skip, limit: size })
+  }, [])
+
   const {
     data: products,
     total: totalProducts,
@@ -38,7 +42,7 @@ const Products: React.FC = () => {
   } = usePaginatedApi(
     fetchProducts,
     1,
-    9
+    12 // Changed to 12 for better grid layout (3x4 or 4x3)
   )
 
   // Fetch categories for dropdown
@@ -137,6 +141,12 @@ const Products: React.FC = () => {
     return categoryMap.get(categoryId) || 'Unknown Category'
   }, [categoryMap])
 
+  const getCategoryColor = useCallback((categoryId: string) => {
+    const colors = ['blue', 'green', 'orange', 'purple', 'red', 'cyan', 'magenta', 'gold']
+    const index = Array.from(categoryMap.keys()).indexOf(categoryId)
+    return colors[index % colors.length] || 'default'
+  }, [categoryMap])
+
   const handleProductClick = (productId: string) => {
     navigate(`/products/${productId}`)
   }
@@ -146,87 +156,320 @@ const Products: React.FC = () => {
 
   return (
     <>
-      <div style={{ marginBottom: 24 }}>
-        <Title level={2}>Products</Title>
-        <Text type="secondary">Manage your product catalog</Text>
+      <style>
+        {`
+          .products-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 32px;
+            border-radius: 12px;
+            margin-bottom: 24px;
+            color: white;
+            position: relative;
+            overflow: hidden;
+          }
+          
+          .products-header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+            animation: float 6s ease-in-out infinite;
+          }
+          
+          @keyframes float {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-20px) rotate(180deg); }
+          }
+          
+          .products-stats {
+            background: white;
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            margin-bottom: 24px;
+          }
+          
+          .product-card {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid #f0f0f0;
+          }
+          
+          .product-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 12px 24px rgba(0,0,0,0.15);
+            border-color: #1890ff;
+          }
+          
+          .product-image-container {
+            position: relative;
+            overflow: hidden;
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+          }
+          
+          .product-image-container img {
+            transition: transform 0.3s ease;
+          }
+          
+          .product-card:hover .product-image-container img {
+            transform: scale(1.02);
+          }
+          
+          .product-image-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(45deg, rgba(24,144,255,0.8), rgba(114,46,209,0.8));
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+          }
+          
+          .product-card:hover .product-image-overlay {
+            opacity: 1;
+          }
+          
+          .product-quick-actions {
+            display: flex;
+            gap: 8px;
+          }
+          
+          .product-quick-actions .ant-btn {
+            border: none;
+            background: rgba(255,255,255,0.9);
+            color: #1890ff;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+          }
+          
+          .product-quick-actions .ant-btn:hover {
+            background: white;
+            transform: scale(1.1);
+          }
+          
+          .category-tag {
+            border-radius: 20px;
+            font-weight: 500;
+          }
+          
+          .pagination-container {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            margin-top: 24px;
+          }
+        `}
+      </style>
+
+      <div className="products-header">
+        <Space direction="vertical" size="small" style={{ position: 'relative', zIndex: 1 }}>
+          <Title level={2} style={{ color: 'white', margin: 0 }}>
+            <ShoppingOutlined style={{ marginRight: 12 }} />
+            Products Catalog
+          </Title>
+          <Text style={{ color: 'rgba(255,255,255,0.9)', fontSize: 16 }}>
+            Discover and manage your amazing product collection
+          </Text>
+        </Space>
       </div>
 
-      <div style={{ marginBottom: 16, textAlign: 'right' }}>
-        <Button
-          type="primary"
-          icon={<PlusOutlined />}
-          onClick={showAddModal}
-          loading={createMutation.loading}
-        >
-          Add Product
-        </Button>
+      <div className="products-stats">
+        <Row gutter={24}>
+          <Col xs={24} sm={8}>
+            <Statistic
+              title="Total Products"
+              value={totalProducts}
+              prefix={<AppstoreOutlined style={{ color: '#1890ff' }} />}
+              valueStyle={{ color: '#1890ff' }}
+            />
+          </Col>
+          <Col xs={24} sm={8}>
+            <Statistic
+              title="Categories"
+              value={categories.length}
+              prefix={<StarOutlined style={{ color: '#52c41a' }} />}
+              valueStyle={{ color: '#52c41a' }}
+            />
+          </Col>
+          <Col xs={24} sm={8}>
+            <Statistic
+              title="Current Page"
+              value={`${currentPage} / ${Math.ceil(totalProducts / pageSize)}`}
+              valueStyle={{ color: '#722ed1' }}
+            />
+          </Col>
+        </Row>
+
+        <Divider />
+
+        <div style={{ textAlign: 'right' }}>
+          <Button
+            type="primary"
+            size="large"
+            icon={<PlusOutlined />}
+            onClick={showAddModal}
+            loading={createMutation.loading}
+            style={{
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              border: 'none',
+              borderRadius: '8px',
+              height: '48px',
+              paddingLeft: '24px',
+              paddingRight: '24px'
+            }}
+          >
+            Add New Product
+          </Button>
+        </div>
       </div>
 
-      <Row gutter={[16, 16]}>
+      <Row gutter={[24, 24]}>
         {products.map((product) => (
-          <Col xs={24} sm={12} md={8} key={product.id}>
+          <Col xs={24} sm={12} lg={8} xl={6} key={product.id}>
             <Card
+              className="product-card"
               hoverable
               cover={
-                <div style={{ height: 200, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f5f5f5' }}>
+                <div className="product-image-container" style={{ height: 240, padding: '12px' }}>
                   {product.link_image ? (
-                    <Image
+                    <img
                       alt={product.name}
                       src={product.link_image}
-                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                      fallback="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMIAAADDCAYAAADQvc6UAAABRWlDQ1BJQ0MgUHJvZmlsZQAAKJFjYGASSSwoyGFhYGDIzSspCnJ3UoiIjFJgf8LAwSDCIMogwMCcmFxc4BgQ4ANUwgCjUcG3awyMIPqyLsis7PPOq3QdDFcvjV3jOD1boQVTPQrgSkktTgbSf4A4LbmgqISBgTEFyFYuLykAsTuAbJEioKOA7DkgdjqEvQHEToKwj4DVhAQ5A9k3gGyB5IxEoBmML4BsnSQk8XQkNtReEOBxcfXxUQg1Mjc0dyHgXNJBSWpFCYh2zi+oLMpMzyhRcASGUqqCZ16yno6CkYGRAQMDKMwhqj/fAIcloxgHQqxAjIHBEugw5sUIsSQpBobtQPdLciLEVJYzMPBHMDBsayhILEqEO4DxG0txmrERhM29nYGBddr//5/DGRjYNRkY/l7////39v///y4Dmn+LgeHANwDrkl1AuO+pmgAAADhlWElmTU0AKgAAAAgAAYdpAAQAAAABAAAAGgAAAAAAAqACAAQAAAABAAAAwqADAAQAAAABAAAAwwAAAAD9b/HnAAAHlklEQVR4Ae3dP3Ik1RnG4W+FgYxN"
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'contain',
+                        borderRadius: '8px'
+                      }}
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.style.display = 'none';
+                        const parent = target.parentElement;
+                        if (parent) {
+                          parent.innerHTML = `
+                            <div style="
+                              height: 100%;
+                              display: flex;
+                              align-items: center;
+                              justify-content: center;
+                              background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+                              color: #999;
+                              font-size: 16px;
+                              flex-direction: column;
+                              border-radius: 8px;
+                            ">
+                              <div style="font-size: 48px; margin-bottom: 8px;">📦</div>
+                              No Image
+                            </div>
+                          `;
+                        }
+                      }}
                     />
                   ) : (
-                    <div style={{ color: '#999' }}>No Image</div>
+                    <div style={{
+                      height: '100%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
+                      color: '#999',
+                      fontSize: 16,
+                      flexDirection: 'column'
+                    }}>
+                      <AppstoreOutlined style={{ fontSize: 48, marginBottom: 8 }} />
+                      No Image
+                    </div>
                   )}
+                  <div className="product-image-overlay">
+                    <div className="product-quick-actions">
+                      <Button
+                        icon={<EyeOutlined />}
+                        onClick={() => handleProductClick(product.id)}
+                      />
+                      <Button
+                        icon={<EditOutlined />}
+                        onClick={() => showEditModal(product)}
+                      />
+                      <Button
+                        icon={<DeleteOutlined />}
+                        onClick={() => handleDelete(product)}
+                        danger
+                      />
+                    </div>
+                  </div>
                 </div>
               }
-              actions={[
-                <Button
-                  type="link"
-                  icon={<EyeOutlined />}
-                  onClick={() => handleProductClick(product.id)}
-                  key="view"
-                >
-                  View
-                </Button>,
-                <Button
-                  type="link"
-                  icon={<EditOutlined />}
-                  onClick={() => showEditModal(product)}
-                  key="edit"
-                >
-                  Edit
-                </Button>,
-                <Button
-                  type="link"
-                  danger
-                  icon={<DeleteOutlined />}
-                  onClick={() => handleDelete(product)}
-                  key="delete"
-                >
-                  Delete
-                </Button>,
-              ]}
             >
               <Card.Meta
                 title={
-                  <div style={{ cursor: 'pointer' }} onClick={() => handleProductClick(product.id)}>
+                  <div
+                    style={{
+                      cursor: 'pointer',
+                      fontSize: 16,
+                      fontWeight: 600,
+                      color: '#1890ff',
+                      marginBottom: 8
+                    }}
+                    onClick={() => handleProductClick(product.id)}
+                  >
                     {product.name}
                   </div>
                 }
                 description={
-                  <div>
-                    <div style={{ marginBottom: 8 }}>
-                      <Text type="secondary">{getCategoryName(product.categories_id)}</Text>
+                  <Space direction="vertical" size="small" style={{ width: '100%' }}>
+                    <Tag
+                      className="category-tag"
+                      color={getCategoryColor(product.categories_id)}
+                    >
+                      {getCategoryName(product.categories_id)}
+                    </Tag>
+
+                    <Text style={{ color: '#666', fontSize: 13, lineHeight: 1.4 }}>
+                      {truncateText(product.descriptions || 'No description available', 80)}
+                    </Text>
+
+                    <div style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      marginTop: 8,
+                      paddingTop: 8,
+                      borderTop: '1px solid #f0f0f0'
+                    }}>
+                      <Badge
+                        count={formatId(product.id)}
+                        style={{
+                          backgroundColor: '#f0f0f0',
+                          color: '#999',
+                          fontSize: 10
+                        }}
+                      />
+                      <Button
+                        type="link"
+                        size="small"
+                        onClick={() => handleProductClick(product.id)}
+                        style={{ padding: 0, height: 'auto' }}
+                      >
+                        View Details →
+                      </Button>
                     </div>
-                    <div style={{ marginBottom: 8 }}>
-                      {truncateText(product.descriptions || 'No description', 60)}
-                    </div>
-                    <div style={{ fontSize: 12, color: '#999' }}>
-                      ID: {formatId(product.id)}
-                    </div>
-                  </div>
+                  </Space>
                 }
               />
             </Card>
@@ -234,51 +477,88 @@ const Products: React.FC = () => {
         ))}
       </Row>
 
-      {products.length === 0 && (
-        <div style={{ textAlign: 'center', marginTop: 24 }}>
-          No products found. Click "Add Product" to create your first product.
+      {products.length === 0 && !productsLoading && (
+        <div style={{
+          textAlign: 'center',
+          marginTop: 48,
+          padding: 48,
+          background: 'white',
+          borderRadius: 12,
+          border: '2px dashed #d9d9d9'
+        }}>
+          <AppstoreOutlined style={{ fontSize: 64, color: '#d9d9d9', marginBottom: 16 }} />
+          <Title level={4} style={{ color: '#999' }}>No Products Found</Title>
+          <Text style={{ color: '#999', marginBottom: 24, display: 'block' }}>
+            Start building your product catalog by adding your first product.
+          </Text>
+          <Button
+            type="primary"
+            size="large"
+            icon={<PlusOutlined />}
+            onClick={showAddModal}
+          >
+            Add Your First Product
+          </Button>
         </div>
       )}
 
       {totalProducts > 0 && (
-        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', marginTop: 24 }}>
-          <Button
-            disabled={currentPage === 1}
-            onClick={() => handlePageChange(currentPage - 1, pageSize)}
-          >
-            Previous
-          </Button>
-          <span style={{ margin: '0 16px' }}>
-            Page {currentPage} of {Math.ceil(totalProducts / pageSize)}
-          </span>
-          <Button
-            disabled={currentPage >= Math.ceil(totalProducts / pageSize)}
-            onClick={() => handlePageChange(currentPage + 1, pageSize)}
-          >
-            Next
-          </Button>
-          <Select
-            value={pageSize}
-            onChange={(value) => handlePageChange(1, value)}
-            style={{ width: 120, marginLeft: 16 }}
-          >
-            <Option value={9}>9 / page</Option>
-            <Option value={18}>18 / page</Option>
-            <Option value={27}>27 / page</Option>
-            <Option value={36}>36 / page</Option>
-          </Select>
-          <span style={{ marginLeft: 16, color: '#999' }}>Total: {totalProducts}</span>
+        <div className="pagination-container">
+          <Row justify="space-between" align="middle">
+            <Col>
+              <Space>
+                <Text strong>Showing:</Text>
+                <Text>{((currentPage - 1) * pageSize) + 1} - {Math.min(currentPage * pageSize, totalProducts)} of {totalProducts} products</Text>
+              </Space>
+            </Col>
+            <Col>
+              <Space size="large">
+                <Button
+                  disabled={currentPage === 1}
+                  onClick={() => handlePageChange(currentPage - 1, pageSize)}
+                  style={{ borderRadius: '6px' }}
+                >
+                  ← Previous
+                </Button>
+
+                <Select
+                  value={pageSize}
+                  onChange={(value) => handlePageChange(1, value)}
+                  style={{ width: 140 }}
+                >
+                  <Option value={12}>12 per page</Option>
+                  <Option value={24}>24 per page</Option>
+                  <Option value={36}>36 per page</Option>
+                  <Option value={48}>48 per page</Option>
+                </Select>
+
+                <Button
+                  disabled={currentPage >= Math.ceil(totalProducts / pageSize)}
+                  onClick={() => handlePageChange(currentPage + 1, pageSize)}
+                  style={{ borderRadius: '6px' }}
+                >
+                  Next →
+                </Button>
+              </Space>
+            </Col>
+          </Row>
         </div>
       )}
 
       <Modal
-        title={modalMode === 'add' ? 'Add Product' : 'Edit Product'}
+        title={
+          <Space>
+            <ShoppingOutlined />
+            {modalMode === 'add' ? 'Add New Product' : 'Edit Product'}
+          </Space>
+        }
         open={isModalVisible}
         onCancel={handleCancel}
         onOk={() => form.submit()}
-        okText={modalMode === 'add' ? 'Add' : 'Update'}
+        okText={modalMode === 'add' ? 'Create Product' : 'Update Product'}
         confirmLoading={createMutation.loading || updateMutation.loading}
-        width={600}
+        width={700}
+        style={{ top: 20 }}
       >
         <Form
           form={form}
@@ -291,7 +571,10 @@ const Products: React.FC = () => {
             label="Product Name"
             rules={commonRules.name}
           >
-            <Input placeholder="Enter product name" />
+            <Input
+              placeholder="Enter an amazing product name"
+              size="large"
+            />
           </Form.Item>
 
           <Form.Item
@@ -300,8 +583,10 @@ const Products: React.FC = () => {
             rules={commonRules.description}
           >
             <Input.TextArea
-              rows={3}
-              placeholder="Enter product description"
+              rows={4}
+              placeholder="Describe what makes this product special..."
+              showCount
+              maxLength={500}
             />
           </Form.Item>
 
@@ -310,7 +595,12 @@ const Products: React.FC = () => {
             label="Category"
             rules={[{ required: true, message: 'Please select a category!' }]}
           >
-            <Select placeholder="Select a category" showSearch optionFilterProp="children">
+            <Select
+              placeholder="Choose the perfect category"
+              showSearch
+              optionFilterProp="children"
+              size="large"
+            >
               {categories.map((category) => (
                 <Option key={category.id} value={category.id}>
                   {category.name}
@@ -321,10 +611,13 @@ const Products: React.FC = () => {
 
           <Form.Item
             name="link_image"
-            label="Image URL"
+            label="Product Image URL"
             rules={commonRules.url}
           >
-            <Input placeholder="Enter image URL (optional)" />
+            <Input
+              placeholder="https://example.com/product-image.jpg"
+              size="large"
+            />
           </Form.Item>
         </Form>
       </Modal>

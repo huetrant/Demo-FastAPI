@@ -101,3 +101,24 @@ def search_variants(
     variants = session.exec(statement).all()
     
     return variants, count
+
+# Lấy danh sách variants theo danh sách id
+def get_variants_by_ids(*, session: Session, ids: List[uuid.UUID]) -> List[Variant]:
+    if not ids:
+        print("⚠️ No IDs provided to get_variants_by_ids")
+        return []
+    
+    print(f"🔍 CRUD: Searching for {len(ids)} variant IDs:")
+    for i, variant_id in enumerate(ids):
+        print(f"  {i+1}. {variant_id} (type: {type(variant_id)})")
+    
+    statement = select(Variant).where(Variant.id.in_(ids))
+    print(f"📝 SQL Query: {statement}")
+    
+    results = session.exec(statement).all()
+    print(f"📋 CRUD: Found {len(results)} variants in database")
+    
+    for i, variant in enumerate(results):
+        print(f"  {i+1}. ID: {variant.id}, Name: {variant.beverage_option}")
+    
+    return results

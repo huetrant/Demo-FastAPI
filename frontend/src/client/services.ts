@@ -135,6 +135,18 @@ export const variantsService = {
   search: (params: { q?: string; skip?: number; limit?: number; product_id?: string; min_price?: number; max_price?: number }) =>
     apiClient.get<PaginatedResponse<Variant>>('/variants/search', params),
 
+  batch: async (data: { ids: string[] }) => {
+    console.log('🔧 Service: Calling batch API with data:', data)
+    try {
+      const response = await apiClient.post<Variant[]>('/variants/batch', data)
+      console.log('✅ Service: Batch API response:', response.data)
+      return response
+    } catch (error) {
+      console.error('❌ Service: Batch API error:', error)
+      throw error
+    }
+  },
+
   create: (data: VariantCreate) =>
     apiClient.post<Variant>('/variants', data),
 

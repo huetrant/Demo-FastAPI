@@ -2,6 +2,7 @@ import uuid
 from typing import Any, List, Tuple
 
 from sqlmodel import Session, select, func
+from sqlalchemy.orm import selectinload
 
 from app.models import OrderDetail, OrderDetailCreate, OrderDetailUpdate
 
@@ -22,20 +23,22 @@ def update_order_detail(*, session: Session, db_order_detail: OrderDetail, order
     session.refresh(db_order_detail)
     return db_order_detail
 
-# Lấy chi tiết đơn hàng theo id
+# Lấy chi tiết đơn hàng theo id, eagerly load variant
 def get_order_detail(*, session: Session, id: uuid.UUID) -> OrderDetail | None:
-    return session.get(OrderDetail, id)
+    statement = select(OrderDetail).options(selectinload(OrderDetail.variant)).where(OrderDetail.id == id)
+    result = session.exec(statement)
+    return result.one_or_none()
 
-# Lấy danh sách chi tiết đơn hàng và tổng số, có phân trang
+# Lấy danh sách chi tiết đơn hàng và tổng số, có phân trang, eagerly load variant
 def get_order_details(*, session: Session, skip: int = 0, limit: int = 100, order_id: uuid.UUID = None) -> Tuple[List[OrderDetail], int]:
     if order_id:
         count_statement = select(func.count()).select_from(OrderDetail).where(OrderDetail.order_id == order_id)
         count = session.exec(count_statement).one()
-        statement = select(OrderDetail).where(OrderDetail.order_id == order_id).offset(skip).limit(limit)
+        statement = select(OrderDetail).where(OrderDetail.order_id == order_id).options(selectinload(OrderDetail.variant)).offset(skip).limit(limit)
     else:
         count_statement = select(func.count()).select_from(OrderDetail)
         count = session.exec(count_statement).one()
-        statement = select(OrderDetail).offset(skip).limit(limit)
+        statement = select(OrderDetail).options(selectinload(OrderDetail.variant)).offset(skip).limit(limit)
 
     order_details = session.exec(statement).all()
     return order_details, count
