@@ -76,13 +76,6 @@ npm run build
 ```
 The build output will be in the `dist` folder.
 
-## Contributing
-
-Contributions are welcome! Please fork the repository and create a pull request with your changes.
-
-## License
-
-Specify your project license here.
 
 ---
 
@@ -163,12 +156,3 @@ frontend/
 npm run build
 ```
 Kết quả build sẽ nằm trong thư mục `dist`.
-
-## Đóng góp
-
-Chào đón các đóng góp! Vui lòng fork repository và tạo pull request với các thay đổi của bạn.
-
-## Giấy phép
-
-Vui lòng chỉ định giấy phép dự án của bạn tại đây.
-npm run build

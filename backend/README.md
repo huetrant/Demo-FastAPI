@@ -93,12 +93,6 @@ The backend exposes RESTful endpoints for managing the following resources:
 
 Each resource has its own router module under `app/api/router/`.
 
-## Contributing
-Contributions are welcome! Please fork the repository and create a pull request with your changes.
-
-## License
-Specify your project license here.
-
 ---
 
 # Backend (Tiếng Việt)
@@ -195,10 +189,3 @@ Backend cung cấp các endpoint RESTful để quản lý các tài nguyên sau:
 - Order Details
 
 Mỗi tài nguyên có một module router riêng trong `app/api/router/`.
-
-## Đóng góp
-Chào đón các đóng góp! Vui lòng fork repository và tạo pull request với các thay đổi của bạn.
-
-## Giấy phép
-Vui lòng chỉ định giấy phép dự án của bạn tại đây.
-## Folder Structure
