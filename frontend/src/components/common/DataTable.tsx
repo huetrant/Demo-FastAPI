@@ -1,5 +1,4 @@
-import React from 'react'
-import { Table, TableProps as AntTableProps } from 'antd'
+import { Table } from 'antd'
 import { TableProps } from '../../client/types'
 
 interface DataTableProps<T> extends TableProps<T> {
