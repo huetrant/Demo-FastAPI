@@ -74,7 +74,17 @@ const Dashboard: React.FC = () => {
   const totalRevenue = orders.reduce((sum, order) => sum + (order.total_amount || 0), 0)
   const avgOrderValue = orders.length > 0 ? totalRevenue / orders.length : 0
 
-  const statsData = [
+  interface StatData {
+    title: string
+    value: string | number
+    icon: React.ReactElement
+    color: string
+    path?: string
+    prefix?: React.ReactNode
+    precision?: number
+  }
+
+  const statsData: StatData[] = [
     {
       title: 'Total Products',
       value: productsTotal || products.length,
@@ -144,8 +154,8 @@ const Dashboard: React.FC = () => {
               <Statistic
                 title={stat.title}
                 value={stat.value}
-                prefix={stat.prefix}
-                precision={stat.precision}
+                {...(stat.prefix && { prefix: stat.prefix })}
+                {...(stat.precision !== undefined && { precision: stat.precision })}
                 valueStyle={{ color: stat.color }}
                 suffix={stat.icon}
               />
