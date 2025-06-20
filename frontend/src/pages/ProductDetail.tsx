@@ -28,15 +28,15 @@ import {
   AppstoreOutlined,
   StarOutlined,
   DollarOutlined,
+  CalendarOutlined,
+  ClockCircleOutlined,
   FireOutlined,
   ThunderboltOutlined,
-  TrophyOutlined,
-  InfoCircleOutlined,
-  HeartOutlined,
   ExperimentOutlined,
-  MedicineBoxOutlined,
-  CalendarOutlined,
-  ClockCircleOutlined
+  HeartOutlined,
+  InfoCircleOutlined,
+  TrophyOutlined,
+  MedicineBoxOutlined
 } from '@ant-design/icons'
 import {
   LoadingSpinner,
@@ -58,7 +58,7 @@ import type {
   VariantUpdate,
   TableColumn
 } from '../client/types'
-import { formatDate, formatId, formatCurrency, commonRules } from '../utils'
+import { formatDate, formatId, commonRules } from '../utils'
 import {
   CaloriesCell,
   CaffeineCell,
@@ -66,7 +66,9 @@ import {
   ProteinCell,
   FiberCell,
   SalesRankCell,
-  PriceCell
+  PriceCell,
+  VitaminACell,
+  VitaminCCell
 } from '../utils/colorFormatters'
 
 const { Title, Text } = Typography
@@ -85,7 +87,7 @@ const ProductDetail: React.FC = () => {
     data: product,
     loading: productLoading,
     error: productError,
-    refresh: refetchProduct
+    execute: refetchProduct
   } = useApi(productApiCall, { immediate: !!productId })
 
   // Fetch product variants with pagination
@@ -221,9 +223,6 @@ const ProductDetail: React.FC = () => {
       dataIndex: 'beverage_option',
       render: (option: string) => (
         <Space>
-          <Avatar size="small" style={{ backgroundColor: '#1890ff' }}>
-            {(option || 'D').charAt(0).toUpperCase()}
-          </Avatar>
           <Text strong>{option || 'Default'}</Text>
         </Space>
       ),
@@ -232,7 +231,7 @@ const ProductDetail: React.FC = () => {
     },
     {
       key: 'price',
-      title: 'Price',
+      title: 'Price (VND)',
       dataIndex: 'price',
       render: (price: number) => <PriceCell amount={price} />,
       sorter: true,
@@ -264,7 +263,7 @@ const ProductDetail: React.FC = () => {
     },
     {
       key: 'dietary_fibre_g',
-      title: 'Fibre (g)',
+      title: 'Fiber (g)',
       dataIndex: 'dietary_fibre_g',
       render: (fibre: number) => <FiberCell fiber={fibre} />,
       sorter: true,
@@ -272,7 +271,7 @@ const ProductDetail: React.FC = () => {
     },
     {
       key: 'sugars_g',
-      title: 'Sugars (g)',
+      title: 'Sugar (g)',
       dataIndex: 'sugars_g',
       render: (sugars: number) => <SugarCell sugar={sugars} />,
       sorter: true,
@@ -280,27 +279,17 @@ const ProductDetail: React.FC = () => {
     },
     {
       key: 'vitamin_a',
-      title: 'Vitamin A',
+      title: 'Vit. A (%)',
       dataIndex: 'vitamin_a',
-      render: (vitaminA: string) => (
-        <Space>
-          <MedicineBoxOutlined style={{ color: '#f5222d' }} />
-          <Text>{vitaminA || 'Not set'}</Text>
-        </Space>
-      ),
+      render: (vitaminA: string) => <VitaminACell vitaminA={vitaminA.replace('%', '')} />,
       sorter: true,
       width: 100,
     },
     {
       key: 'vitamin_c',
-      title: 'Vitamin C',
+      title: 'Vit. C (%)',
       dataIndex: 'vitamin_c',
-      render: (vitaminC: string) => (
-        <Space>
-          <MedicineBoxOutlined style={{ color: '#52c41a' }} />
-          <Text>{vitaminC || 'Not set'}</Text>
-        </Space>
-      ),
+      render: (vitaminC: string) => <VitaminCCell vitaminC={vitaminC.replace('%', '')} />,
       sorter: true,
       width: 100,
     },

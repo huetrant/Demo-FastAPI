@@ -1,7 +1,6 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import { useApi, useMutation } from '../hooks'
 import {
-  ordersService,
   orderDetailsService,
   variantsService,
   customersService,
@@ -10,7 +9,7 @@ import {
 } from '../client/services'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
-  Card, Row, Col, Button, Modal, Form, Select, InputNumber, Input, Typography, Space, Descriptions, Tag, Statistic, Alert, Table
+  Card, Row, Col, Button, Modal, Form, Select, InputNumber, Input, Typography, Space, Tag, Statistic
 } from 'antd'
 import {
   ArrowLeftOutlined,
@@ -27,27 +26,30 @@ import {
   showUpdateConfirm
 } from '../components'
 import type {
-  Order,
   OrderDetail,
   OrderDetailCreate,
   OrderDetailUpdate,
-  TableColumn,
   Variant,
-  Product
+  Product,
+  TableColumn
 } from '../client/types'
 import {
-  formatDate,
   formatId,
   formatCurrency,
   formatQuantity,
-  commonRules,
-  formatCaloriesWithColor,
-  formatCaffeineWithColor,
-  formatSugarWithColor,
-  formatProteinWithColor,
-  formatFiberWithColor,
-  formatSalesRankWithColor
+  commonRules
 } from '../utils'
+import {
+  CaloriesCell,
+  CaffeineCell,
+  SugarCell,
+  ProteinCell,
+  FiberCell,
+  SalesRankCell,
+  VitaminACell,
+  VitaminCCell,
+  PriceCell
+} from '../utils/colorFormatters'
 
 const { Title, Text } = Typography
 const { Option, OptGroup } = Select
@@ -80,7 +82,7 @@ const OrderDetailPage: React.FC = () => {
   })
 
   const updateOrderDetailMutation = useMutation(
-    ({ id, data }: { id: string; data: any }) => orderDetailsService.update(id, data),
+    ({ id, data }: { id: string; data: OrderDetailUpdate }) => orderDetailsService.update(id, data),
     {
       onSuccess: () => {
         refetchOrderDetails()
@@ -347,7 +349,7 @@ const OrderDetailPage: React.FC = () => {
       const variant = getVariantInfo(values.variant_id)
       const itemName = variant?.beverage_option || 'Item'
       showUpdateConfirm(itemName, () => {
-        updateOrderDetailMutation.mutate({ id: editingOrderDetail.id, data: orderDetailData })
+        updateOrderDetailMutation.mutate({ id: editingOrderDetail.id, data: orderDetailData as OrderDetailUpdate })
       })
     }
   }
@@ -366,12 +368,12 @@ const OrderDetailPage: React.FC = () => {
   })
 
   // Table columns for order details
-  const columns = [
+  const columns: TableColumn<any>[] = [
     {
       title: 'Product',
       dataIndex: 'product',
       key: 'product',
-      sorter: (a: any, b: any) => (a.product?.name || '').localeCompare(b.product?.name || ''),
+      sorter: true,
       render: (product: Product | null, record: any) => {
         const productName = product?.name || 'Unknown Product'
         const productId = product?.id || record.product?.id
@@ -389,7 +391,7 @@ const OrderDetailPage: React.FC = () => {
       dataIndex: 'variant',
       key: 'variant',
       width: 150,
-      sorter: (a: any, b: any) => (a.variant?.beverage_option || '').localeCompare(b.variant?.beverage_option || ''),
+      sorter: true,
       render: (variant: Variant | null) => {
         const option = variant?.beverage_option || 'Default'
         return option
@@ -399,149 +401,94 @@ const OrderDetailPage: React.FC = () => {
       title: 'Calories (cal)',
       dataIndex: 'variant',
       key: 'calories',
-      sorter: (a: any, b: any) => (a.variant?.calories || 0) - (b.variant?.calories || 0),
-      render: (variant: Variant | null) => {
-        const formatted = formatCaloriesWithColor(variant?.calories)
-        return <span style={formatted.style}>{formatted.text}</span>
-      }
+      sorter: true,
+      render: (variant: Variant | null) => (
+        <CaloriesCell calories={variant?.calories} />
+      )
     },
     {
       title: 'Caffeine (mg)',
       dataIndex: 'variant',
       key: 'caffeine',
-      sorter: (a: any, b: any) => (a.variant?.caffeine_mg || 0) - (b.variant?.caffeine_mg || 0),
-      render: (variant: Variant | null) => {
-        const formatted = formatCaffeineWithColor(variant?.caffeine_mg)
-        return <span style={formatted.style}>{formatted.text}</span>
-      }
+      sorter: true,
+      render: (variant: Variant | null) => (
+        <CaffeineCell caffeine={variant?.caffeine_mg} />
+      )
     },
     {
       title: 'Protein (g)',
       dataIndex: 'variant',
       key: 'protein',
-      sorter: (a: any, b: any) => (a.variant?.protein_g || 0) - (b.variant?.protein_g || 0),
-      render: (variant: Variant | null) => {
-        const protein = variant?.protein_g
-        if (!protein) return '-'
-
-        return (
-          <span>
-            💪 {protein}g
-          </span>
-        )
-      }
+      sorter: true,
+      render: (variant: Variant | null) => (
+        <ProteinCell protein={variant?.protein_g} />
+      )
     },
     {
       title: 'Sugar (g)',
       dataIndex: 'variant',
       key: 'sugar',
-      sorter: (a: any, b: any) => (a.variant?.sugars_g || 0) - (b.variant?.sugars_g || 0),
-      render: (variant: Variant | null) => {
-        const sugar = variant?.sugars_g
-        if (!sugar) return <span style={{ color: '#d9d9d9' }}>-</span>
-
-        // Consistent color scheme: green (low/good) -> orange (medium) -> red (high/bad)
-        let color = '#52c41a' // Low sugar (good)
-        if (sugar > 25) color = '#f5222d' // High sugar (bad)
-        else if (sugar > 15) color = '#fa8c16' // Medium sugar
-
-        return (
-          <span style={{ color, fontWeight: 'bold' }}>
-            🍯 {sugar}g
-          </span>
-        )
-      }
+      sorter: true,
+      render: (variant: Variant | null) => (
+        <SugarCell sugar={variant?.sugars_g} />
+      )
     },
     {
       title: 'Fiber (g)',
       dataIndex: 'variant',
       key: 'fiber',
-      sorter: (a: any, b: any) => (a.variant?.dietary_fibre_g || 0) - (b.variant?.dietary_fibre_g || 0),
-      render: (variant: Variant | null) => {
-        const fiber = variant?.dietary_fibre_g
-        if (!fiber) return '-'
-
-        return (
-          <span>
-            🌾 {fiber}g
-          </span>
-        )
-      }
+      sorter: true,
+      render: (variant: Variant | null) => (
+        <FiberCell fiber={variant?.dietary_fibre_g} />
+      )
     },
     {
-      title: 'Vitamin A',
+      title: 'Vit. A (%)',
       dataIndex: 'variant',
       key: 'vitamin_a',
-      sorter: (a: any, b: any) => (a.variant?.vitamin_a || '').localeCompare(b.variant?.vitamin_a || ''),
-      render: (variant: Variant | null) => {
-        const vitaminA = variant?.vitamin_a
-        if (!vitaminA) return '-'
-
-        return (
-          <span>
-            🥕 {vitaminA}
-          </span>
-        )
-      }
+      sorter: true,
+      render: (variant: Variant | null) => (
+        <VitaminACell vitaminA={variant?.vitamin_a?.replace('%', '')} />
+      )
     },
     {
-      title: 'Vitamin C',
+      title: 'Vit. C (%)',
       dataIndex: 'variant',
       key: 'vitamin_c',
-      sorter: (a: any, b: any) => (a.variant?.vitamin_c || '').localeCompare(b.variant?.vitamin_c || ''),
-      render: (variant: Variant | null) => {
-        const vitaminC = variant?.vitamin_c
-        if (!vitaminC) return '-'
-
-        return (
-          <span>
-            🍊 {vitaminC}
-          </span>
-        )
-      }
+      sorter: true,
+      render: (variant: Variant | null) => (
+        <VitaminCCell vitaminC={variant?.vitamin_c?.replace('%', '')} />
+      )
     },
     {
       title: 'Sales Rank',
       dataIndex: 'variant',
       key: 'sales_rank',
-      sorter: (a: any, b: any) => (a.variant?.sales_rank || 0) - (b.variant?.sales_rank || 0),
-      render: (variant: Variant | null) => {
-        const rank = variant?.sales_rank
-        if (!rank) return <span style={{ color: '#d9d9d9' }}>-</span>
-
-        // Sales rank only goes from 1-10, so adjust color scheme accordingly
-        // Note: For rank, lower number = better performance
-        let color = '#f5222d' // Lower ranks (6-10)
-        if (rank <= 3) color = '#52c41a' // Top 3 ranks (excellent)
-        else if (rank <= 5) color = '#fa8c16' // Ranks 4-5 (good)
-
-        return (
-          <span style={{ color, fontWeight: 'bold' }}>
-            🏆 {rank}
-          </span>
-        )
-      }
+      sorter: true,
+      render: (variant: Variant | null) => (
+        <SalesRankCell rank={variant?.sales_rank} />
+      )
     },
     {
       title: 'Quantity',
       dataIndex: 'quantity',
       key: 'quantity',
-      sorter: (a: any, b: any) => (a.quantity || 0) - (b.quantity || 0),
+      sorter: true,
       render: (quantity: number) => formatQuantity(quantity)
     },
     {
-      title: 'Unit Price',
+      title: 'Unit Price (VND)',
       dataIndex: 'unit_price',
       key: 'unit_price',
-      sorter: (a: any, b: any) => (a.unit_price || 0) - (b.unit_price || 0),
-      render: (price: number) => formatCurrency(price)
+      sorter: true,
+      render: (price: number) => <PriceCell amount={price} />
     },
     {
-      title: 'Total',
+      title: 'Total (VND)',
       dataIndex: 'itemTotal',
       key: 'itemTotal',
-      sorter: (a: any, b: any) => (a.itemTotal || 0) - (b.itemTotal || 0),
-      render: (total: number) => formatCurrency(total)
+      sorter: true,
+      render: (total: number) => <PriceCell amount={total} />
     },
     {
       title: 'Actions',
@@ -578,10 +525,7 @@ const OrderDetailPage: React.FC = () => {
     return <ErrorAlert message={orderDetailsError} />
   }
 
-  // Simplified row styling - no color coding needed
-  const getRowClassName = () => {
-    return '' // Remove product-based row coloring
-  }
+
 
   return (
     <div style={{ padding: '24px' }}>
@@ -677,17 +621,15 @@ const OrderDetailPage: React.FC = () => {
           🍽️ Order Items & Nutrition Information
         </span>
       }>
-        <Table
-          dataSource={tableData}
+        <DataTable
+          data={tableData}
           columns={columns}
-          rowKey="id"
-          rowClassName={getRowClassName}
           loading={orderDetailsLoading || variantsLoading || productsLoading}
           pagination={{
+            current: 1,
             pageSize: 10,
-            showSizeChanger: true,
-            showQuickJumper: true,
-            showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} items`
+            total: tableData.length,
+            onChange: () => { }
           }}
           scroll={{ x: 1400 }}
         />
