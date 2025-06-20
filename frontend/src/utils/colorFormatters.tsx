@@ -1,4 +1,13 @@
 import React from 'react'
+import { Space, Typography } from 'antd'
+import {
+  FireOutlined,
+  ThunderboltOutlined,
+  InfoCircleOutlined,
+  ExperimentOutlined,
+  TrophyOutlined,
+  DollarOutlined
+} from '@ant-design/icons'
 import {
   formatCaloriesWithColor,
   formatCaffeineWithColor,
@@ -7,38 +16,78 @@ import {
   formatFiberWithColor,
   formatSalesRankWithColor,
   formatValueWithColor,
-  formatPriceWithColor
+  formatPriceWithColor,
+  formatVitaminAWithIcon,
+  formatVitaminCWithIcon
 } from './format'
+
+const { Text } = Typography
 
 // React components for easy reuse in table columns
 export const CaloriesCell: React.FC<{ calories?: number }> = ({ calories }) => {
   const formatted = formatCaloriesWithColor(calories)
-  return <span style={formatted.style}> {formatted.text} </span>
+  if (!formatted.style) return null
+  return (
+    <Space>
+      <FireOutlined style={{ color: formatted.style.color }} />
+      <span style={formatted.style}>{formatted.text}</span>
+    </Space>
+  )
 }
 
 export const CaffeineCell: React.FC<{ caffeine?: number }> = ({ caffeine }) => {
   const formatted = formatCaffeineWithColor(caffeine)
-  return <span style={formatted.style}> {formatted.text} </span>
+  if (!formatted.style) return null
+  return (
+    <Space>
+      <ThunderboltOutlined style={{ color: formatted.style.color }} />
+      <span style={formatted.style}>{formatted.text}</span>
+    </Space>
+  )
 }
 
 export const SugarCell: React.FC<{ sugar?: number }> = ({ sugar }) => {
   const formatted = formatSugarWithColor(sugar)
-  return <span style={formatted.style}> {formatted.text} </span>
+  if (!formatted.style) return null
+  return (
+    <Space>
+      <InfoCircleOutlined style={{ color: formatted.style.color }} />
+      <span style={formatted.style}>{formatted.text}</span>
+    </Space>
+  )
 }
 
 export const ProteinCell: React.FC<{ protein?: number }> = ({ protein }) => {
   const formatted = formatProteinWithColor(protein)
-  return <span style={formatted.style}> {formatted.text} </span>
+  if (!formatted.style) return null
+  return (
+    <Space>
+      <span style={{ color: formatted.style.color, fontSize: '16px' }}>💪</span>
+      <span style={formatted.style}>{formatted.text}</span>
+    </Space>
+  )
 }
 
 export const FiberCell: React.FC<{ fiber?: number }> = ({ fiber }) => {
   const formatted = formatFiberWithColor(fiber)
-  return <span style={formatted.style}> {formatted.text} </span>
+  if (!formatted.style) return null
+  return (
+    <Space>
+      <ExperimentOutlined style={{ color: formatted.style.color }} />
+      <span style={formatted.style}>{formatted.text}</span>
+    </Space>
+  )
 }
 
 export const SalesRankCell: React.FC<{ rank?: number }> = ({ rank }) => {
   const formatted = formatSalesRankWithColor(rank)
-  return <span style={formatted.style}> {formatted.text} </span>
+  if (!formatted.style) return null
+  return (
+    <Space>
+      <TrophyOutlined style={{ color: formatted.style.color }} />
+      <span style={formatted.style}>{formatted.text}</span>
+    </Space>
+  )
 }
 
 // Generic value cell with custom configuration
@@ -53,13 +102,45 @@ export const ValueCell: React.FC<{
   }
 }> = ({ value, config }) => {
   const formatted = formatValueWithColor(value, config)
+  if (!formatted.style) return null
   return <span style={formatted.style}> {formatted.text} </span>
 }
 
 // Price cell with color formatting
 export const PriceCell: React.FC<{ amount?: number }> = ({ amount }) => {
   const formatted = formatPriceWithColor(amount)
-  return <span style={formatted.style}> {formatted.text} </span>
+  if (!formatted.style) return null
+  return (
+    <Space>
+      <DollarOutlined style={{ color: formatted.style.color }} />
+      <span style={formatted.style}>{formatted.text}</span>
+    </Space>
+  )
+}
+
+// Vitamin cells with icons and colors
+export const VitaminACell: React.FC<{ vitaminA?: string | number }> = ({ vitaminA }) => {
+  const formatted = formatVitaminAWithIcon(vitaminA)
+  if (!formatted.style) return null
+  const Icon = formatted.icon as React.FC<React.SVGProps<SVGSVGElement>>
+  return (
+    <Space>
+      <Icon style={{ color: formatted.style.color, fontSize: '16px' }} />
+      <span style={formatted.style}>{formatted.text}</span>
+    </Space>
+  )
+}
+
+export const VitaminCCell: React.FC<{ vitaminC?: string | number }> = ({ vitaminC }) => {
+  const formatted = formatVitaminCWithIcon(vitaminC)
+  if (!formatted.style) return null
+  const Icon = formatted.icon as (props: React.SVGProps<SVGSVGElement>) => JSX.Element
+  return (
+    <Space>
+      <Icon style={{ color: formatted.style.color, fontSize: '16px' }} />
+      <span style={formatted.style}>{formatted.text}</span>
+    </Space>
+  )
 }
 
 // Table column generators for common use cases
@@ -105,6 +186,13 @@ export const createNutritionalColumns = () => [
     key: 'sales_rank',
     sorter: (a: any, b: any) => (a.sales_rank || 0) - (b.sales_rank || 0),
     render: (rank: number) => <SalesRankCell rank={rank} />
+  },
+  {
+    title: 'Giá (VND)',
+    dataIndex: 'price',
+    key: 'price',
+    sorter: (a: any, b: any) => (a.price || 0) - (b.price || 0),
+    render: (price: number) => <PriceCell amount={price} />
   }
 ]
 
@@ -151,6 +239,13 @@ export const createVariantNutritionalColumns = () => [
     key: 'sales_rank',
     sorter: (a: any, b: any) => (a.variant?.sales_rank || 0) - (b.variant?.sales_rank || 0),
     render: (variant: any) => <SalesRankCell rank={variant?.sales_rank} />
+  },
+  {
+    title: 'Giá (VND)',
+    dataIndex: 'variant',
+    key: 'price',
+    sorter: (a: any, b: any) => (a.variant?.price || 0) - (b.variant?.price || 0),
+    render: (variant: any) => <PriceCell amount={variant?.price} />
   }
 ]
 

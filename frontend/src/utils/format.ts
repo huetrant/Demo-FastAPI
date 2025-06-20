@@ -227,7 +227,7 @@ export const formatCaffeineWithColor = (value?: number) => {
   else if (value > 100) color = COLOR_SCHEME.MEDIUM // Medium caffeine
 
   return {
-    text: `${value}mg`,
+    text: `${value}`,
     icon: ICONS.caffeine,
     style: { color, fontWeight: 'bold' as const }
   }
@@ -242,7 +242,7 @@ export const formatSugarWithColor = (value?: number) => {
   else if (value > 15) color = COLOR_SCHEME.MEDIUM // Medium sugar
 
   return {
-    text: `${value}g`,
+    text: `${value}`,
     icon: ICONS.sugar,
     style: { color, fontWeight: 'bold' as const }
   }
@@ -257,7 +257,7 @@ export const formatProteinWithColor = (value?: number) => {
   else if (value < 3) color = COLOR_SCHEME.BAD // Low protein (bad)
 
   return {
-    text: `${value}g`,
+    text: `${value}`,
     icon: ICONS.protein,
     style: { color, fontWeight: 'bold' as const }
   }
@@ -272,7 +272,7 @@ export const formatFiberWithColor = (value?: number) => {
   else if (value < 2) color = COLOR_SCHEME.BAD // Low fiber (bad)
 
   return {
-    text: `${value}g`,
+    text: `${value}`,
     icon: ICONS.fiber,
     style: { color, fontWeight: 'bold' as const }
   }
@@ -294,10 +294,10 @@ export const formatSalesRankWithColor = (value?: number) => {
 }
 
 export const formatPriceWithColor = (value?: number) => {
-  if (!value) return { text: '0 VND', icon: ICONS.price, style: { color: COLOR_SCHEME.NEUTRAL } }
+  if (!value) return { text: '0', icon: ICONS.price, style: { color: COLOR_SCHEME.NEUTRAL } }
 
   return {
-    text: formatCurrency(value),
+    text: formatNumber(value),
     icon: ICONS.price,
     style: { color: COLOR_SCHEME.GOOD, fontWeight: 'bold' as const }
   }
