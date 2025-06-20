@@ -1,5 +1,17 @@
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
+import React from 'react'
+import {
+  MedicineBoxOutlined,
+  SyncOutlined,
+  CheckCircleOutlined,
+  DollarOutlined,
+  FireOutlined,
+  ThunderboltOutlined,
+  InfoCircleOutlined,
+  ExperimentOutlined,
+  TrophyOutlined
+} from '@ant-design/icons'
 
 dayjs.extend(relativeTime)
 
@@ -132,95 +144,166 @@ export const COLOR_SCHEME = {
   DEFAULT: '#000000'    // Black - default text
 } as const
 
-// Nutritional value color formatters
-export const formatCaloriesWithColor = (calories?: number) => {
-  if (!calories) return { text: '-', color: COLOR_SCHEME.NEUTRAL }
+// Icon definitions
+export const ICONS = {
+  // Vitamin icons
+  vitaminA: () => React.createElement(React.Fragment, null, '🥕'),
+  vitaminC: () => React.createElement(React.Fragment, null, '🍊'),
 
+  // Sync icons
+  sync: () => React.createElement(SyncOutlined, { style: { color: '#1890ff' } }),
+  synced: () => React.createElement(CheckCircleOutlined, { style: { color: '#52c41a' } }),
+
+  // Nutritional icons
+  calories: () => React.createElement(FireOutlined, { style: { color: '#ff4d4f' } }),
+  caffeine: () => React.createElement(ThunderboltOutlined, { style: { color: '#faad14' } }),
+  protein: () => React.createElement(React.Fragment, null, '💪'),
+  sugar: () => React.createElement(InfoCircleOutlined, { style: { color: '#1890ff' } }),
+  fiber: () => React.createElement(ExperimentOutlined, { style: { color: '#722ed1' } }),
+  salesRank: () => React.createElement(React.Fragment, null, '🏆'),
+
+  // Other icons
+  price: () => React.createElement(DollarOutlined, { style: { color: '#52c41a' } }),
+  medicineBox: () => React.createElement(MedicineBoxOutlined, {})
+}
+
+// Vitamin icon formatter
+export const formatVitaminIcon = (vitamin: 'vitaminA' | 'vitaminC') => {
+  const IconComponent = ICONS[vitamin]
+  return IconComponent ? IconComponent() : null
+}
+
+// Sync icon formatter
+export const formatSyncIcon = (status: 'sync' | 'synced') => {
+  const IconComponent = ICONS[status]
+  return IconComponent ? IconComponent() : null
+}
+
+// Nutritional value color formatters (unchanged, but updated to use ICONS.vitaminA and vitaminC)
+export const formatVitaminAWithIcon = (value?: number | string) => {
+  if (!value) return { text: '-', icon: ICONS.vitaminA, color: COLOR_SCHEME.NEUTRAL }
+
+  return {
+    text: `${value}`,
+    icon: ICONS.vitaminA,
+    color: COLOR_SCHEME.BAD,
+    style: { color: COLOR_SCHEME.BAD, fontWeight: 'bold' as const }
+  }
+}
+
+export const formatVitaminCWithIcon = (value?: number | string) => {
+  if (!value) return { text: '-', icon: ICONS.vitaminC, color: COLOR_SCHEME.NEUTRAL }
+
+  return {
+    text: `${value}`,
+    icon: ICONS.vitaminC,
+    color: COLOR_SCHEME.GOOD,
+    style: { color: COLOR_SCHEME.GOOD, fontWeight: 'bold' as const }
+  }
+}
+
+// Nutritional value formatters with color and icons
+export const formatCaloriesWithColor = (value?: number) => {
+  if (!value) return { text: '-', icon: ICONS.calories, style: { color: COLOR_SCHEME.NEUTRAL } }
+
+  // Calories: lower is generally better for health
   let color: string = COLOR_SCHEME.GOOD // Low calories (good)
-  if (calories > 300) color = COLOR_SCHEME.BAD // High calories (bad)
-  else if (calories > 150) color = COLOR_SCHEME.MEDIUM // Medium calories
+  if (value > 300) color = COLOR_SCHEME.BAD // High calories (bad)
+  else if (value > 150) color = COLOR_SCHEME.MEDIUM // Medium calories
 
   return {
-    text: `🔥 ${calories}`,
-    color,
+    text: `${value}`,
+    icon: ICONS.calories,
     style: { color, fontWeight: 'bold' as const }
   }
 }
 
-export const formatCaffeineWithColor = (caffeine?: number) => {
-  if (!caffeine) return { text: '-', color: COLOR_SCHEME.NEUTRAL }
+export const formatCaffeineWithColor = (value?: number) => {
+  if (!value) return { text: '-', icon: ICONS.caffeine, style: { color: COLOR_SCHEME.NEUTRAL } }
 
+  // Caffeine: moderate amounts are generally acceptable
   let color: string = COLOR_SCHEME.GOOD // Low caffeine (good)
-  if (caffeine > 150) color = COLOR_SCHEME.BAD // High caffeine (bad)
-  else if (caffeine > 75) color = COLOR_SCHEME.MEDIUM // Medium caffeine
+  if (value > 200) color = COLOR_SCHEME.BAD // High caffeine (bad)
+  else if (value > 100) color = COLOR_SCHEME.MEDIUM // Medium caffeine
 
   return {
-    text: `⚡ ${caffeine}`,
-    color,
+    text: `${value}mg`,
+    icon: ICONS.caffeine,
     style: { color, fontWeight: 'bold' as const }
   }
 }
 
-export const formatSugarWithColor = (sugar?: number) => {
-  if (!sugar) return { text: '-', color: COLOR_SCHEME.NEUTRAL }
+export const formatSugarWithColor = (value?: number) => {
+  if (!value) return { text: '-', icon: ICONS.sugar, style: { color: COLOR_SCHEME.NEUTRAL } }
 
+  // Sugar: lower is better
   let color: string = COLOR_SCHEME.GOOD // Low sugar (good)
-  if (sugar > 25) color = COLOR_SCHEME.BAD // High sugar (bad)
-  else if (sugar > 15) color = COLOR_SCHEME.MEDIUM // Medium sugar
+  if (value > 25) color = COLOR_SCHEME.BAD // High sugar (bad)
+  else if (value > 15) color = COLOR_SCHEME.MEDIUM // Medium sugar
 
   return {
-    text: `🍯 ${sugar}`,
-    color,
+    text: `${value}g`,
+    icon: ICONS.sugar,
     style: { color, fontWeight: 'bold' as const }
   }
 }
 
-export const formatProteinWithColor = (protein?: number) => {
-  if (!protein) return { text: '-', color: COLOR_SCHEME.NEUTRAL }
+export const formatProteinWithColor = (value?: number) => {
+  if (!value) return { text: '-', icon: ICONS.protein, style: { color: COLOR_SCHEME.NEUTRAL } }
 
-  // For protein, higher is generally better
-  let color: string = COLOR_SCHEME.BAD // Low protein (bad)
-  if (protein >= 15) color = COLOR_SCHEME.GOOD // High protein (good)
-  else if (protein >= 8) color = COLOR_SCHEME.MEDIUM // Medium protein
+  // Protein: higher is generally better
+  let color: string = COLOR_SCHEME.MEDIUM // Medium protein
+  if (value > 10) color = COLOR_SCHEME.GOOD // High protein (good)
+  else if (value < 3) color = COLOR_SCHEME.BAD // Low protein (bad)
 
   return {
-    text: `💪 ${protein}`,
-    color,
+    text: `${value}g`,
+    icon: ICONS.protein,
     style: { color, fontWeight: 'bold' as const }
   }
 }
 
-export const formatFiberWithColor = (fiber?: number) => {
-  if (!fiber) return { text: '-', color: COLOR_SCHEME.NEUTRAL }
+export const formatFiberWithColor = (value?: number) => {
+  if (!value) return { text: '-', icon: ICONS.fiber, style: { color: COLOR_SCHEME.NEUTRAL } }
 
-  // For fiber, higher is generally better
-  let color: string = COLOR_SCHEME.BAD // Low fiber (bad)
-  if (fiber >= 5) color = COLOR_SCHEME.GOOD // High fiber (good)
-  else if (fiber >= 2) color = COLOR_SCHEME.MEDIUM // Medium fiber
+  // Fiber: higher is generally better
+  let color: string = COLOR_SCHEME.MEDIUM // Medium fiber
+  if (value > 5) color = COLOR_SCHEME.GOOD // High fiber (good)
+  else if (value < 2) color = COLOR_SCHEME.BAD // Low fiber (bad)
 
   return {
-    text: `🌾 ${fiber}`,
-    color,
+    text: `${value}g`,
+    icon: ICONS.fiber,
     style: { color, fontWeight: 'bold' as const }
   }
 }
 
-export const formatSalesRankWithColor = (rank?: number) => {
-  if (!rank) return { text: '-', color: COLOR_SCHEME.NEUTRAL }
+export const formatSalesRankWithColor = (value?: number) => {
+  if (!value) return { text: '-', icon: ICONS.salesRank, style: { color: COLOR_SCHEME.NEUTRAL } }
 
-  // Sales rank only goes from 1-10, lower number = better performance
+  // Sales rank: lower number = better performance (1 is best)
   let color: string = COLOR_SCHEME.BAD // Lower ranks (6-10)
-  if (rank <= 3) color = COLOR_SCHEME.GOOD // Top 3 ranks (excellent)
-  else if (rank <= 5) color = COLOR_SCHEME.MEDIUM // Ranks 4-5 (good)
+  if (value <= 3) color = COLOR_SCHEME.GOOD // Top 3 ranks (excellent)
+  else if (value <= 5) color = COLOR_SCHEME.MEDIUM // Ranks 4-5 (good)
 
   return {
-    text: `🏆 ${rank}`,
-    color,
+    text: `${value}`,
+    icon: ICONS.salesRank,
     style: { color, fontWeight: 'bold' as const }
   }
 }
 
-// Generic value formatter with color based on thresholds
+export const formatPriceWithColor = (value?: number) => {
+  if (!value) return { text: '0 VND', icon: ICONS.price, style: { color: COLOR_SCHEME.NEUTRAL } }
+
+  return {
+    text: formatCurrency(value),
+    icon: ICONS.price,
+    style: { color: COLOR_SCHEME.GOOD, fontWeight: 'bold' as const }
+  }
+}
+
+// Generic value formatter with custom configuration
 export const formatValueWithColor = (
   value: number | undefined,
   config: {
@@ -228,47 +311,24 @@ export const formatValueWithColor = (
     unit?: string
     goodThreshold: number
     mediumThreshold: number
-    higherIsBetter?: boolean // Default: false (lower is better)
+    higherIsBetter?: boolean
   }
 ) => {
-  if (!value) return { text: '-', color: COLOR_SCHEME.NEUTRAL }
+  if (!value) return { text: '-', style: { color: COLOR_SCHEME.NEUTRAL } }
 
-  const { icon = '', unit = '', goodThreshold, mediumThreshold, higherIsBetter = false } = config
+  const { goodThreshold, mediumThreshold, higherIsBetter = true, unit = '', icon = '' } = config
 
-  let color: string
+  let color: string = COLOR_SCHEME.MEDIUM
   if (higherIsBetter) {
-    // Higher values are better (e.g., protein, fiber)
     if (value >= goodThreshold) color = COLOR_SCHEME.GOOD
-    else if (value >= mediumThreshold) color = COLOR_SCHEME.MEDIUM
-    else color = COLOR_SCHEME.BAD
+    else if (value < mediumThreshold) color = COLOR_SCHEME.BAD
   } else {
-    // Lower values are better (e.g., calories, sugar, caffeine)
     if (value <= goodThreshold) color = COLOR_SCHEME.GOOD
-    else if (value <= mediumThreshold) color = COLOR_SCHEME.MEDIUM
-    else color = COLOR_SCHEME.BAD
+    else if (value > mediumThreshold) color = COLOR_SCHEME.BAD
   }
 
   return {
-    text: `${icon}${value}${unit}`.trim(),
-    color,
-    style: { color, fontWeight: 'bold' as const }
-  }
-}
-
-// Price/Currency formatter with color based on amount
-export const formatPriceWithColor = (amount?: number) => {
-  if (!amount) return { text: '0 VND', color: COLOR_SCHEME.NEUTRAL }
-
-  // For price, higher amounts get different colors (higher is better for business)
-  let color: string = COLOR_SCHEME.BAD // Low value orders (red)
-  if (amount >= 100) color = COLOR_SCHEME.GOOD // High value orders (green)
-  else if (amount >= 50) color = COLOR_SCHEME.MEDIUM // Medium value orders (orange)
-
-  const formattedAmount = formatCurrency(amount)
-
-  return {
-    text: `💰 ${formattedAmount}`,
-    color,
+    text: `${icon}${value}${unit}`,
     style: { color, fontWeight: 'bold' as const }
   }
 }
